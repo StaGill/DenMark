@@ -2,8 +2,7 @@
 # Summarize the results from Simulation 1, Simulation 2, and Simulation 3
 ###########################################################################
 
-# some package and functions: 
-#  package: 
+# Step 0: some package used in this file
 library(ggplot2)
 library(cowplot)
 library(dplyr)
@@ -11,7 +10,7 @@ library(tidyr)
 library(fields)
 library(reshape2)
 library(patchwork)
-# functions:
+# quantile functions:
 q2.5 <- function(x) quantile(x, prob = 0.025)
 q25 <- function(x) quantile(x, prob = 0.25)
 q50 <- function(x) quantile(x, prob = 0.50)
@@ -1795,3 +1794,4 @@ ggplot(viz.S1.df, aes(x = x, y = y, color = marks)) +
                             legend.title = element_text(size = 40, margin = margin(b = 20)),  # add bottom margin
                             legend.text  = element_text(size = 40)
                           )
+
