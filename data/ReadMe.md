@@ -6,8 +6,8 @@ Two datasets is analyzed in the manuscript:
 - 10X Xenium Breast cancer data 
 
 The source dataset can be found: 
-- https://console.cloud.google.com/storage/browser/public-datasets-vizgen-merfish;tab=objects?prefix=&forceOnObjectsSortingFiltering=false
-- https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast
+- Mouse Brain (https://console.cloud.google.com/storage/browser/public-datasets-vizgen-merfish;tab=objects?prefix=&forceOnObjectsSortingFiltering=false)
+- Human Breast Cancer (https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast)
 
 
 ------
