@@ -176,6 +176,34 @@ q97.5 <- function(x) quantile(x, prob = 0.975)
 
 
 #---------- DenMark framework ----------#
+# input: 
+# (1) grid_size
+# (2) ROI region: first define and transform the ROI into a form [-L1, L1]*[-L2, L2], then provide the half-length in x and y as L1 and L2 
+# (3) the gridded cell counts and gene expression per grid, calculated from the listed functions 
+# (4) basis function at each direction (HSGP hyperparameters)
+# (5) boundary factor (HSGP hyperparameters)
+# 
+# Expected output from the function: 
+# (1) the sampled from the posterior distribution 
+# (2) the Rhat statistics for convergenece check 
+
+
+
+
+DenMarkmain <- function(grid_size = grid_size, 
+                        L1 = L1, 
+                        L2 = L2, 
+                        basis = basis, 
+                        boundfactor=boundfactor, 
+                        griddedY = griddedY, 
+                        griddedM = griddedM){
+# grid_size: total number of grids 
+# basis:  number of basis function per direction (xy two dimensions)
+
+
+  
+} 
+
 
 
 
