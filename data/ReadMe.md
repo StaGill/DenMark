@@ -1,4 +1,4 @@
-# This is a folder for collecting all data (and preprocessing)
+# This is a folder for collecting all datasets (and preprocessed datasets)
 
 
 Two datasets is analyzed in the manuscript: 
