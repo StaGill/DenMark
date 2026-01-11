@@ -13,7 +13,7 @@ The source dataset can be found:
 ------
 Dataset analysis datasets: 
 - MERFISH
-  - cell-location.Rdata: astrocyte cell ID*cell location(x-y coordinates) matrix
+  - cell-location.Rdata: astrocyte cell ID*cell location (x-y coordinates) matrix
   - cell-gene-expression.Rdata: astrocyte cell ID*gene expression matrix
 - 10X Xenium Breast Cancer
 
