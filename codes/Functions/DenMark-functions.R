@@ -2,11 +2,46 @@
 #     Functions in  DenMark     #
 #################################
 
+#****** This file contains following functions in developing DenMark: 
+# 1. buildgridpp      : a function to discretize the single-cell resolution ST data (cell locations and gene expression per cell) by grids. 
+# 2. grid_pts_centroid: a function to calculate and summaize the grid centroids, grid area, and the total number of grids 
+# 3. DenMark          : a Bayesian framework to get the posterior 
+#*****
+# Note: before running DenMark, you should have installed \texttt{stan} and \texttt{cmdstanr} for the Monte Carlo sampling, \texttt{fields} for generating the grids,   
 
 
-#-------- Function buildgridpp --------#
 
-# build a function to discretize the MPP with grids:
+#-------- 0. Load the Packages --------#
+
+# Pkg for the algorithm framework 
+library('rstan')
+library(cmdstanr)
+
+# Pkg for vizualization:
+library('ggplot2')
+library(cowplot)
+library(viridis)
+library(rethinking)
+library(reshape2)
+library(ggridges)
+library(dplyr)
+library(ggrepel)
+
+# other Pkgs
+library('MASS')
+library(fields)
+library(Matrix)
+library(tidyverse)
+library(magrittr)
+library(tidybayes)
+library(coda)
+library(loo) # WAIC calculation 
+
+
+
+
+#-------- 1. Function buildgridpp --------#
+
 # Input: matrix with locations, gene expression at each point 
 # Output: two vectors (Y) and (M); 2 matrics of Y and M for the analysis 
 buildgridpp<- function(grid_size=grid_size, 
@@ -122,6 +157,27 @@ grid_pts_centroid<- function(grid_size=grid_size,
   
   return(grid_res_summary)
 }
+
+
+
+
+#---------- quantile functions ----------#
+q2.5 <- function(x) quantile(x, prob = 0.025)
+q25 <- function(x) quantile(x, prob = 0.25)
+q50 <- function(x) quantile(x, prob = 0.50)
+q75 <- function(x) quantile(x, prob = 0.75)
+q97.5 <- function(x) quantile(x, prob = 0.975)
+
+
+
+# 
+
+
+
+
+#---------- DenMark framework ----------#
+
+
 
 
 
