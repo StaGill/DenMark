@@ -24,12 +24,12 @@ This repository contains the reference R implementation used in the DenMark manu
   Scripts used to generate the figures and results in the manuscript
   (simulation study, MERFISH mouse brain data and Xenium breast cancer data).
 
+- `Images/`  
+  Images in the paper and this repo.
+
 - `Tutorial_DenMark.rmd`  
   An RMarkdown tutorial that walks through two single-cell resolution datasets
   (MERFISH mouse brain and Xenium breast cancer data).
-
-- `Images/`
-  Images in the paper and this repo.
 
 - `LICENSE`  
   License for using and modifying this code.
