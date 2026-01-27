@@ -5,7 +5,13 @@ DenMark (Density-dependent Marked Point process framework) is a model-based stat
 ## DenMark Workflow 
 ![Overview the DenMark workflow](Images/denmark-workflow.png)
 
+By aligning an “unknown” spectrum (or dataset) to a reference while forcing matched spectra to share the same m/z values, DenMark enables downstream analyses such as:
 
+- jointly quantify the spatial heterogeneity of the cell locations and a typical gene expression (candidate gene);
+- quantify the correlation between cell density and gene expression
+- identify the DCGs in the provided single-cell resolution spatial transcriptomics dataset 
+
+This repository contains the reference R implementation used in the DenMark manuscript.
 
 
 ------
