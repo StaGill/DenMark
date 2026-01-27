@@ -18,16 +18,15 @@ This repository contains the reference R implementation used in the DenMark manu
 ## Repository layout
 
 - `DenMark/`  
-  Core Python implementation of GALAXY (alignment and peak-group functions).
+  Core R implementation of DenMark (grid discretization and main modeling functions).
 
 - `CodeInPaper/`  
   Scripts used to generate the figures and results in the manuscript
-  (simulation study, macrophage regression data, canine sarcoma data, etc.).
+  (simulation study, MERFISH mouse brain data and Xenium breast cancer data).
 
-- `Tutorial_GALAXY.ipynb`  
-  A Jupyter notebook tutorial that walks through aligning two MALDI datasets
-  (e.g., Week 2 and Week 5 regression samples) and preparing them for joint
-  segmentation.
+- `Tutorial_DenMark.rmd`  
+  An RMarkdown tutorial that walks through two single-cell resolution datasets
+  (MERFISH mouse brain and Xenium breast cancer data).
 
 - `LICENSE`  
   License for using and modifying this code.
@@ -43,26 +42,21 @@ This repository contains the reference R implementation used in the DenMark manu
 
 The scripts in CodeInPaper/ (to be documented) correspond to the main analyses:
 
-- Simulation study (mouse pancreas MALDI)
-Evaluates alignment error under controlled peak shifts and noise.
+- Simulation study  
+Evaluates two approximation performance (grid-based approach vs. the actual marked point process; HSGP vs. exact GP).
 
-- Atherosclerosis regression (macrophage metabolomics)
-Aligns Week 5 MALDI spectra to Week 2, evaluates performance using anchor m/z
-points, and performs joint spatial segmentation.
+-  MERFISH mouse brain data 
+Quanfity the spatial heterogeneity in cell locations and gene expression, and candidate gene expression correlation to cell density. Identification of DCGs is also provided. 
 
-- Canine sarcoma data
-Aligns cancer tissue spectra to normal tissue, assesses classification
-performance before and after alignment, and performs joint clustering across
-cancer samples.
+- Xenium breast cancer data
+Quanfity the spatial heterogeneity in cell locations and gene expression, and candidate gene expression correlation to cell density. Identification of DCGs is also provided. 
 
 Data sources:
 
-- Mouse pancreas MALDI: https://doi.org/10.5281/zenodo.3607915
+- Mouse brain MERFISH:  https://console.cloud.google.com/storage/browser/public-datasets-vizgen-merfish ;
 
-- Atherosclerosis regression MALDI: available from the data owners upon reasonable request.
+- Human breast cancer Xenium: https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast .
 
-- Canine carcinoma MALDI: PRIDE accession PXD010990
-(https://proteomecentral.proteomexchange.org/cgi/GetDataset?ID=PXD010990)
 
 
 
