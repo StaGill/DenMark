@@ -3,7 +3,7 @@ DenMark (Density-dependent Marked Point process framework) is a model-based stat
 
 ------
 ## DenMark Workflow 
-![Overview of the DenMark workflow](images/updated-workflow.pdf)
+![Overview the DenMark workflow](Images/updated-workflow.pdf)
 
 
 
