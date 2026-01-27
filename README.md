@@ -28,7 +28,7 @@ This repository contains the reference R implementation used in the DenMark manu
   An RMarkdown tutorial that walks through two single-cell resolution datasets
   (MERFISH mouse brain and Xenium breast cancer data).
 
-- `Images'
+- `Images/`
   Images in the paper and this repo.
 
 - `LICENSE`  
