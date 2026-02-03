@@ -7,7 +7,7 @@
 # 2. grid_pts_centroid: a function to calculate and summaize the grid centroids, grid area, and the total number of grids 
 # 3. DenMark          : a Bayesian framework to get the posterior 
 #**********************************************************************************************************************************************
-# Note: before running DenMark, you should have installed \texttt{stan} and \texttt{cmdstanr} for the Monte Carlo sampling, \texttt{fields} for generating the grids,   
+# Note: before running DenMark, you should have installed \texttt{stan} and \texttt{cmdstanr} for the Monte Carlo sampling, \texttt{fields} for generating the grids, \texttt{loo} for calculating WAIC  
 
 
 
@@ -35,7 +35,7 @@ library(tidyverse)
 library(magrittr)
 library(tidybayes)
 library(coda)
-library(loo) # WAIC calculation 
+library(loo) 
 
 
 
@@ -186,23 +186,131 @@ q97.5 <- function(x) quantile(x, prob = 0.975)
 # Expected output from the function: 
 # (1) the sampled from the posterior distribution 
 # (2) the Rhat statistics for convergenece check 
-
+# (3) the WAIC criteria
 
 
 
 DenMarkmain <- function(grid_size = grid_size, 
-                        L1 = L1, 
-                        L2 = L2, 
+                        dataset = dataset, 
                         basis = basis, 
-                        boundfactor=boundfactor, 
-                        griddedY = griddedY, 
-                        griddedM = griddedM){
+                        boundfactor=boundfactor){
 # grid_size: total number of grids 
 # basis:  number of basis function per direction (xy two dimensions)
 
+  # packages
+  require(cmdstanr)
+  require(fields)
+  require(posterior)
+  require(loo)
+ # ==================================================
+  # Step 1: Grid geometry
+  # ==================================================
 
+  grid_info <- grid_pts_centroid(
+    grid_size = grid_size,
+    dataset   = dataset
+  )
+
+  coords      <- grid_info$coords
+  grid_area   <- grid_info$grid_area
+  log_grid_area <- log(grid_area)
+  N           <- grid_info$N
+
+  # Normalize coordinates
+  L1 <- max(abs(coords[,1] - mean(coords[,1])))
+  L2 <- max(abs(coords[,2] - mean(coords[,2])))
+
+  coords[,1] <- coords[,1] - mean(coords[,1])
+  coords[,2] <- coords[,2] - mean(coords[,2])
+
+  # Distance-based prior scale
+  distMat <- fields::rdist(coords)
+  mrange  <- max(distMat) / (2 * 2.75)
+# ==================================================
+  # Step 2: Build gridded Y and M
+  # ==================================================
+
+  grid_data <- buildgridpp(
+    grid_size = grid_size,
+    dataset   = dataset
+  )
+
+  Y <- grid_data$vec[, "Y"]
+  M <- grid_data$vec[, "M"]
+
+  # ==================================================
+  # Step 3: HSGP construction
+  # ==================================================
+
+  m1 <- basis
+  m2 <- basis
+  mstar <- m1 * m2
+
+  Lstar <- c(L1, L2)
+  L <- boundfactor * Lstar
+
+  indices <- as.matrix(
+    expand.grid(S2 = 1:m1, S1 = 1:m2)[, 2:1]
+  )
+
+  stan_data <- list(
+    n = N,
+    y1 = Y,
+    y2 = M,
+    d = 2,
+    mstar = mstar,
+    coords = coords,
+    log_grid_area = log_grid_area,
+    mrange = mrange,
+    indices = indices,
+    L = L,
+    is_centerted_PHI = 0
+  )
+
+  # ==================================================
+  # Step 4: Fit Stan
+  # ==================================================
+
+  init_fun <- function() list(
+    Astar = matrix(c(1, 0, 0.5, 1), 2, 2),
+    sigma = c(1, 1),
+    beta0 = 0,
+    beta1 = -1,
+    ell   = c(1, 1),
+    betab1 = rep(0, mstar),
+    betab2 = rep(0, mstar)
+  )
+
+  mod <- cmdstan_model("../DenMark-M2.stan")
+
+  fit <- mod$sample(
+    data = stan_data,
+    chains = 4,
+    parallel_chains = 4,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    adapt_delta = 0.95,
+    init = init_fun
+  )
+
+  # ==================================================
+  # Step 5: Diagnostics & WAIC
+  # ==================================================
+
+  log_lik <- posterior::as_draws_matrix(
+    fit$draws("log_lik")
+  )
+
+  list(
+    fit = fit,
+    rhat = fit$summary()$rhat,
+    waic = loo::waic(log_lik),
+    Ymat = grid_data$Ymat,
+    Mmat = grid_data$Mmat
+  )
   
 } 
+
 
 
 
