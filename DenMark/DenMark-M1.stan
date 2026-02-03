@@ -107,7 +107,6 @@ model{
 }
 
 generated quantities{
-  // temp remove the following 
   vector[n] log_lik;
   {
     vector[n] z1 = a11*w1;
@@ -115,12 +114,13 @@ generated quantities{
     for (i in 1:n) {
       real lambda1 = log_grid_area + beta0 + z1[i];
       real lambda2 = beta1 + log(y1[i] + 0.05) + z2[i];
-//      // Joint log-likelihood for WAIC
+     // Joint log-likelihood for WAIC
       log_lik[i] = poisson_log_lpmf(y1[i] | lambda1) +
                    poisson_log_lpmf(y2[i] | lambda2);
     }
   }
 }
+
 
 
 
