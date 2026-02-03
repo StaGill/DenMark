@@ -38,7 +38,7 @@ This repository contains the reference R implementation used in the DenMark manu
 -----
 ## A Quick Start 
 
-Please refer to the tutorial file Tutorial_DenMark.rmd. 
+Please refer to the tutorial file `Tutorial_DenMark.rmd`. 
 
 ------
 ## Reproducing results from the manuscript
