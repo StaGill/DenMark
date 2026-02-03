@@ -82,7 +82,6 @@ transformed parameters{
 	vector[mstar] diagSPD1;
 	vector[mstar] diagSPD2;
 	for(i in 1:mstar){ 
-	  // spd_isotropic_matern12, spd_isotropic_matern32, spd_isotropic_square_exponential
 	  diagSPD1[i] =  sqrt(spd_isotropic_matern32(1, ell[1], sqrt(compute_lambda(L, indices[i,], d)), d)); // (8)
 	  diagSPD2[i] =  sqrt(spd_isotropic_matern32(1, ell[2], sqrt(compute_lambda(L, indices[i,], d)), d));
 	}
@@ -92,14 +91,13 @@ transformed parameters{
 
 model{
 	beta0 ~ normal(0, 5); // intercept 1  
-  beta1 ~ normal(0, 5); // intercept 2 
-  a11 ~ normal(0, 0.5);
-  a22 ~ normal(0, 0.5);
-	ell ~ inv_gamma(2, mrange); //  
+    beta1 ~ normal(0, 5); // intercept 2 
+    a11 ~ normal(0, 0.5); // SD of the 1st GP
+    a22 ~ normal(0, 0.5); // SD of the 2nd GP
+	ell ~ inv_gamma(2, mrange); // length of scale for two GPs
 	
 	betab1 ~ std_normal();
 	betab2 ~ std_normal();
-	
 	
 	vector[n] z1 = a11*w1;
 	vector[n] z2 = a22*w2;
@@ -123,5 +121,6 @@ generated quantities{
     }
   }
 }
+
 
 
