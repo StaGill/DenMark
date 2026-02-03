@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////
-// Final stan codes for the application part 
-// Model 2: latent field model (two latent fields) 
+// Stan codes for the application part 
+// Model 2: DenMark with two dependent latent fields
 // log(lambda1) = beta0 + a11*w1(g)
 // log(lambda2) = beta1 + log(Y) + a21*w1(g) + a22*w2(g)
 //////////////////////////////////////////////////////////////////
@@ -93,20 +93,21 @@ transformed parameters{
 }
 
 model{
-	beta0 ~ normal(0, 5); // intercept 1  
+// priors 
+  beta0 ~ normal(0, 5); // intercept 1  
   beta1 ~ normal(0, 5); // intercept 2  
 	
-	Astar ~ lkj_corr_cholesky(1.2);
-  sigma ~ std_normal();
+  Astar ~ lkj_corr_cholesky(1.2); // the Cholesky decomposition of R matrix 
+  sigma ~ std_normal(); // two SDs of the latent fields 
   
-  ell[1] ~ inv_gamma(2, mrange); //  
-	ell[2] ~ inv_gamma(2, mrange); //  
+    ell[1] ~ inv_gamma(2, mrange); //  length of scale 1, expected mean dependent on the graph max length 
+	ell[2] ~ inv_gamma(2, mrange); //  length of scale 2, expected mean dependent on the graph max length 
 	
 	betab1 ~ std_normal();
 	betab2 ~ std_normal();
 	
-	matrix[2,2] A = diag_pre_multiply(sigma, Astar);
-	matrix[n,2] z = (A*append_col(w1,w2)')';
+	matrix[2,2] A = diag_pre_multiply(sigma, Astar); // A (co-regionlaization matrix)
+	matrix[n,2] z = (A*append_col(w1,w2)')'; 
 	
 	y1 ~ poisson_log( log_grid_area + beta0 + z[,1] );
 	y2 ~ poisson_log( beta1 + log(to_vector(y1) + 0.05 ) + z[,2]  );
@@ -127,5 +128,6 @@ generated quantities{
     }
   }
 }
+
 
 
