@@ -2,11 +2,11 @@
 #     Functions in  DenMark     #
 #################################
 
-#****** This file contains following functions in developing DenMark: 
+#****** This file contains following functions in developing DenMark: *************************************************************************
 # 1. buildgridpp      : a function to discretize the single-cell resolution ST data (cell locations and gene expression per cell) by grids. 
 # 2. grid_pts_centroid: a function to calculate and summaize the grid centroids, grid area, and the total number of grids 
 # 3. DenMark          : a Bayesian framework to get the posterior 
-#*****
+#**********************************************************************************************************************************************
 # Note: before running DenMark, you should have installed \texttt{stan} and \texttt{cmdstanr} for the Monte Carlo sampling, \texttt{fields} for generating the grids,   
 
 
@@ -203,6 +203,7 @@ DenMarkmain <- function(grid_size = grid_size,
 
   
 } 
+
 
 
 
