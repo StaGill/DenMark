@@ -27,7 +27,7 @@ q97.5 <- function(x) quantile(x, prob = 0.975)
 # (2) fitting parameters 
 
 
-#rm(list=ls())
+
 # Combine the boxplots, final codes for simulation 1: -----
 beta_pts   <- 1      # intercept for points (eta1)
 beta_marks <- -1     # intercept for marks (eta2)
@@ -92,10 +92,10 @@ time.consume.HSGP.l<- NULL
 
 
 # high # of basis functions 
-sim_list<- c(3,4,6:12,14,16:96,99:100)
+sim_list<- c(1:100)
 
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/results/exact_GP_',i,'.csv')
+  path<- paste0('../results/exact_GP_',i,'.csv')
   post.summary.exact.GP<- cbind(post.summary.exact.GP, read.csv(file=path, header=T)[,3])
   lower.summary.exact.GP <- cbind(lower.summary.exact.GP, read.csv(file=path, header=T)[,5])
   upper.summary.exact.GP <- cbind(upper.summary.exact.GP, read.csv(file=path, header=T)[,9])
@@ -104,7 +104,7 @@ for (i in sim_list){
 
 
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/revise-V3/HSGP_approx_30_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_30_',i,'.csv')
   post.summary.HSGP.h <- cbind(post.summary.HSGP.h, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.h <- cbind(lower.summary.HSGP.h, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.h <- cbind(upper.summary.HSGP.h, read.csv(file=path, header=T)[,9])
@@ -113,7 +113,7 @@ for (i in sim_list){
 
 # middle # of basis functions
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/revise-V3/HSGP_approx_25_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_25_',i,'.csv')
   post.summary.HSGP.m <- cbind(post.summary.HSGP.m, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.m <- cbind(lower.summary.HSGP.m, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.m <- cbind(upper.summary.HSGP.m, read.csv(file=path, header=T)[,9])
@@ -123,7 +123,7 @@ for (i in sim_list){
 
 # low # of basis functions
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/revise-V3/HSGP_approx_5_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_5_',i,'.csv')
   post.summary.HSGP.m2 <- cbind(post.summary.HSGP.m2, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.m2 <- cbind(lower.summary.HSGP.m2, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.m2 <- cbind(upper.summary.HSGP.m2, read.csv(file=path, header=T)[,9])
@@ -134,7 +134,7 @@ for (i in sim_list){
 # boundary factors: 
 # high boundary factors 
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/revise-V3/HSGP_approx_3_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_3_',i,'.csv')
   post.summary.HSGP.l <- cbind(post.summary.HSGP.l, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.l <- cbind(lower.summary.HSGP.l, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.l <- cbind(upper.summary.HSGP.l, read.csv(file=path, header=T)[,9])
@@ -288,7 +288,7 @@ time.consume.HSGP.lc<- NULL
 sim_list<- sim_list
 
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/backup-backup-V3/HSGP_approx_30_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_30_',i,'.csv')
   post.summary.HSGP.lc <- cbind(post.summary.HSGP.lc, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.lc <- cbind(lower.summary.HSGP.lc, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.lc <- cbind(upper.summary.HSGP.lc, read.csv(file=path, header=T)[,9])
@@ -297,7 +297,7 @@ for (i in sim_list){
 
 # middle # of basis functions
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/backup-backup-V3/HSGP_approx_25_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_25_',i,'.csv')
   post.summary.HSGP.mc <- cbind(post.summary.HSGP.mc, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.mc <- cbind(lower.summary.HSGP.mc, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.mc <- cbind(upper.summary.HSGP.mc, read.csv(file=path, header=T)[,9])
@@ -306,7 +306,7 @@ for (i in sim_list){
 
 # middle # of basis functions
 for (i in sim_list){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation1/V3/backup-backup-V3/HSGP_approx_5_',i,'.csv')
+  path<- paste0('../results/HSGP_approx_5_',i,'.csv')
   post.summary.HSGP.hc <- cbind(post.summary.HSGP.hc, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP.hc <- cbind(lower.summary.HSGP.hc, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP.hc <- cbind(upper.summary.HSGP.hc, read.csv(file=path, header=T)[,9])
@@ -475,7 +475,7 @@ L1<- 4.4
 L2<- 3.6
 
 # the viz for the point-level and grid-level data:
-S2_viz<-read.csv('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/final-summarize-codes/Figure-S2-simulated-data.csv')
+S2_viz<-read.csv('../results/Figure-S2-simulated-data.csv')
 
 colnames(S2_viz)[4]<- 'Gene'
 #my_cols <- c('#FFE5E6',"#fdcfd1", "#fc9ea3",   "#fa6e76", "#f93d48", '#ED1B2F')
@@ -696,7 +696,7 @@ print(p_combined)
 
 
 # Simulation 2 revise the criteria ---
-file_path <- 'C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation2/general-model/results-V2/'
+file_path <- '../results-V2/'
 
 
 # the summarized version of the dataset
@@ -804,7 +804,7 @@ plot_grid(S2_p1, S2_p2, labels = c("", ""), ncol = 2)
 # checking the convergence 
 
 # from the dataset 
-file_path <- 'C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation3/revised-grid-grid-simulation/results/'
+file_path <- '../S3/results/'
 
 # the parameter recovery: ----
 #================ parameters; ================ 
@@ -840,7 +840,7 @@ Rhat.HSGP<- NULL
 
 
 for (i in 1:100){
-  path<- paste0('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation3/revised-grid-grid-simulation/results/S3-HSGP_',i,'.csv')
+  path<- paste0('../S3/results/S3-HSGP_',i,'.csv')
   post.summary.HSGP<- cbind(post.summary.HSGP, read.csv(file=path, header=T)[,3])
   lower.summary.HSGP <- cbind(lower.summary.HSGP, read.csv(file=path, header=T)[,5])
   upper.summary.HSGP <- cbind(upper.summary.HSGP, read.csv(file=path, header=T)[,9])
@@ -1094,7 +1094,7 @@ my_cols_mark <- c(
   "#7A0177"   # Peak (dark crimson-purple)
 )
 # the viz for Y and M 
-viz.S1<-read.csv('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/final-summarize-codes/Figure-S1-simulated-data.csv')
+viz.S1<-read.csv('../S1/Figure-S1-simulated-data.csv')
 viz.S1.df<-as.data.frame(viz.S1)
 
 
@@ -1141,7 +1141,7 @@ ggplot(viz.S1.df, aes(x = x, y = y, color = points)) +
   geom_point(size=8, shape=15) +
   labs(y = "", x = NULL) +
   theme_classic() +
-  scale_color_gradientn(colors = my_cols_pts,   # use your custom palette as a gradient
+  scale_color_gradientn(colors = my_cols_pts,    
                         #breaks = seq(0, 2, by = 1),
                         #labels = seq(0, 2, by = 1),
                         breaks = seq(0, 2, by = 1),
@@ -1192,7 +1192,7 @@ ggplot(viz.S1.df, aes(x = x, y = y, color = avg_mark)) +
     legend.text = element_text(size = 40),
     plot.title = element_text(size = 45)
   )+
-  scale_color_gradientn(colors = my_cols,   # use your custom palette as a gradient
+  scale_color_gradientn(colors = my_cols,    
                         breaks = seq(0, 8, by = 2),
                         labels = seq(0, 8, by = 2),
                         limits = c(0, 8),
@@ -1299,9 +1299,9 @@ print(p_combined)
 
 
 # read the RDS file 
-#cmdstan_fit_HS_decay <-readRDS('C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Dataset-Analysis/S3-M2-cmdstan_fit.rds')
+#cmdstan_fit_HS_decay <-readRDS('../Dataset-Analysis/S3-M2-cmdstan_fit.rds')
 cmdstan_fit_HS_decay <- readRDS(
-  "C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/final-summarize-codes/S1-M2-cmdstan_fit.rds"
+  "../S1-M2-cmdstan_fit.rds"
 )
 
 
@@ -1554,126 +1554,3 @@ final_plot <- plot_grid(
   ncol = 1,
   rel_heights = c(1, 1, 1)
 )
-
-
-ggsave("C:/Users/xumc7/OneDrive/Desktop/BIOS702 Protocol/Protocol/final_figure.png", final_plot,
-       width = 12, height = 16, dpi = 600)
-
-
-
-
-
-# the simulated-based correlation distribution （Corr(Y, M/Y)） ----
-file_path <- 'C:/Users/xumc7/OneDrive/Desktop/PhD Thesis 1/clusters-computecanada/Simulation3/grid-grid-result/'
-
-
-# the summarized version of the dataset
-true_corr<- rep(NA, 100)
-post_mean_corr<- rep(NA, 100)
-
-
-# read csv 
-for (i in c(1:100)){
-  file_df<- read.csv(paste0(file_path, 'A_mat_compare_',i,'.csv'))
-  # lambda1:
-  true_corr[i] <- file_df[,4][1]
-}
-
-
-
-avg_true_corr<-mean(true_corr)
-
-for (i in c(1:100)){
-   load(paste0(file_path, 'corr_dist_',i,'.Rdata'))
-  # lambda1:
-  post_mean_corr[i] <- mean(corr_dist_1)
-}
-
-
-post_mean_corr
-
-par(mfrow = c(1, 1))
-
-# Density plot
-plot(density( na.omit(post_mean_corr)), 
-     main = "Density of Posterior Mean Correlation",
-     xlab = "Posterior Mean Correlation",
-     lwd = 2)
-
-# Add vertical line for the true value
-abline(v = avg_true_corr, col = "red", lwd = 2, lty = 2)
-
-
-
-
-
-
-
-# Appendix codes in Simulation 2-----
-
-# for the gridded gene expression:
-par(mfrow = c(1,1), mar = c(4,4,4,5))
-image.plot(
-  x = x_coords,
-  y = y_coords,
-  M_high ,
-  breaks = make_breaks(M_high, 10),
-  col = viridis(10+2, option = "magma")[-c(1,2)],
-  main = "Gridded Gene Expression",
-  xlab = "",
-  ylab = '',
-  useRaster = F, 
-  xaxt = "n",
-  yaxt = "n",
-  legend.args = list(
-    text = "",       
-    side = 4,                         
-    font = 5,                         
-    cex = 10,
-    cex.axis=2 
-  ),
-  axis.args = list(
-    cex.axis = 2.5
-  ),
-  legend.width = 1,
-  cex.main=3,
-  cex.axis = 2.5 
-)
-grid(nx = ncol(M_high), ny = nrow(M_high), col = "black", lwd = 0.5)
-
-
-
-
-# for the gene expression in Figure A: 
-
-ggplot(viz.S1.df, aes(x = x, y = y, color = marks)) +
-  geom_point(size=8, shape=15) +
-  labs(y = "", x = NULL) +
-  theme_classic() +
-  theme(
-    axis.text.x   = element_blank(),
-    axis.text.y   = element_blank(),
-    axis.title.x = element_text(size = 40),
-    axis.title.y = element_text(size = 40),
-    legend.title = element_text(size = 40),
-    legend.text = element_text(size = 40),
-    plot.title = element_text(size = 45)
-  )+
-  scale_color_gradientn(colors = my_cols,   # use your custom palette as a gradient
-                        breaks = seq(0, 8, by = 2),
-                        labels = seq(0, 8, by = 2),
-                        limits = c(0, 8),
-                        guide = guide_colorbar(
-                          barwidth = 2,   # bar width
-                          barheight = 20,  # bar height
-                          title = "Gene\nExpression",   # <-- this sets the legend title
-                          guide = guide_colorbar(
-                            barwidth = 2,
-                            barheight = 20,
-                            title.vjust = 8
-                          ))) +theme(
-                            legend.title = element_text(size = 40, margin = margin(b = 20)),  # add bottom margin
-                            legend.text  = element_text(size = 40)
-                          )
-
-
