@@ -76,14 +76,12 @@ parameters {
 	real beta1;
 	vector[mstar] betab1;
 	vector[mstar] betab2;
-	//real a21;
 }
 
 transformed parameters{
 	vector[mstar] diagSPD1;
 	vector[mstar] diagSPD2;
 	for(i in 1:mstar){ 
-	  // spd_isotropic_matern12, spd_isotropic_matern32, spd_isotropic_square_exponential
 	  diagSPD1[i] =  sqrt(spd_isotropic_matern32(1, ell[1], sqrt(compute_lambda(L, indices[i,], d)), d)); // (8)
 	  diagSPD2[i] =  sqrt(spd_isotropic_matern32(1, ell[2], sqrt(compute_lambda(L, indices[i,], d)), d));
 	}
@@ -127,6 +125,7 @@ generated quantities{
     }
   }
 }
+
 
 
 
