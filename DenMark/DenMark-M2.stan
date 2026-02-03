@@ -51,7 +51,6 @@ data {
 	real<lower=0.00001>mrange;
 	
 	array[mstar,d] int indices;
-	//vector[2] sigma_multiplier;
 	int is_centerted_PHI;
 }
 
@@ -128,6 +127,7 @@ generated quantities{
     }
   }
 }
+
 
 
 
