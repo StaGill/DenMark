@@ -1,5 +1,4 @@
 ///////////////////////////////////////////////////////////////////
-// Final stan codes for the application part 
 // Model 1: two independent latent fields, drop a21 field dependence
 // log(lambda1) = beta0 + w1(g)
 // log(lambda2) = beta1 + log(Y) +  a22*w2(g)
@@ -120,6 +119,7 @@ generated quantities{
     }
   }
 }
+
 
 
 
