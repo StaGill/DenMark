@@ -1,11 +1,11 @@
 # DenMark
-**DenMark** (<ins>**Den**</ins>sity-dependent <ins>**Mark**</ins>ed Point process framework) is a model-based statistical framework to quantify how gene expression varies with local cell density and to identify density-correlated genes (DCGs). It is designed for single-cell resolution spatial transcriptomics data such as MERFISH, Xenium and SeqFISH, where cell location and gene expression at the single-cell resolution is provided.
+**DenMark** (<ins>**Den**</ins>sity-dependent <ins>**Mark**</ins>ed Point process framework) is a model-based statistical framework to quantify how gene expression varies with local cell density and to identify density-correlated genes (DCGs). It is designed for single-cell resolution spatial transcriptomics data such as MERFISH, Xenium and SeqFISH, where cell location and gene expression at the single-cell resolution are provided.
 
 ------
 ## DenMark Workflow 
 ![Overview the DenMark workflow](Images/denmark-workflow.png)
 
-Implemented with a density-dependent marked point process, as well as comparing to the one with independent marked point process, DenMark enables downstream analyses such as:
+Implemented with a density-dependent marked point process, as well as comparing to the one with an independent marked point process, DenMark enables downstream analyses such as:
 
 - jointly quantify the spatial heterogeneity of the cell locations and a typical gene expression (candidate gene);
 - quantify the correlation between cell density and gene expression
@@ -22,7 +22,7 @@ This repository contains the reference R implementation used in the DenMark manu
 
 - `CodeInPaper/`  
   Scripts used to generate the figures and results in the manuscript
-  (simulation study, MERFISH mouse brain data and Xenium breast cancer data).
+  (simulation study, MERFISH mouse brain data, and Xenium breast cancer data).
 
 - `Images/`  
   Images in the paper and this repo.
@@ -47,13 +47,13 @@ Please refer to the tutorial file `Tutorial_DenMark.rmd`.
 The scripts in CodeInPaper/ (to be documented) correspond to the main analyses:
 
 - Simulation study  
-Evaluates two approximation performance (grid-based approach vs. the actual marked point process; HSGP vs. exact GP).
+Evaluates two approximation performances (grid-based approach vs. the actual marked point process; HSGP vs. exact GP).
 
 -  MERFISH mouse brain data 
-Quanfity the spatial heterogeneity in cell locations and gene expression, and candidate gene expression correlation to cell density. Identification of DCGs is also provided. 
+Quantify the spatial heterogeneity in cell locations and gene expression, and candidate gene expression correlation to cell density. Identification of DCGs is also provided. 
 
 - Xenium breast cancer data
-Quanfity the spatial heterogeneity in cell locations and gene expression, and candidate gene expression correlation to cell density. Identification of DCGs is also provided. 
+Quantify the spatial heterogeneity in cell locations and gene expression, and candidate gene expression correlation to cell density. Identification of DCGs is also provided. 
 
 Data sources:
 
