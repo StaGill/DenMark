@@ -764,11 +764,11 @@ print(paste0('The estimated range for gene expression is: ',
 
 ## 4. DCG Discovery: Identify the density correlated genes in the dataset  
 
-This analysis can be finished by running each candidate gene and select the genes. 
+This analysis can be finished by running each candidate gene and selecting the genes. 
 
 
-- PCG: positively density-expression ($Astar[2,1]>0$) as positive density-correlated genes (PCG);
+- PCG: positively density-expression ($Astar[2,1]>0$) as positively density-correlated genes (PCG);
 
-- NCG: negatively density-expression ($Astar[2,1]<0$) as positive density-correlated genes (NCG).
+- NCG: negatively density-expression ($Astar[2,1]<0$) as negatively density-correlated genes (NCG).
 
 
