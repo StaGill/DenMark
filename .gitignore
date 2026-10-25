@@ -85,6 +85,10 @@ ENV/
 *.swp
 .DS_Store
 
+# Notes for coding agents, kept local until the paper is published
+AGENTS.md
+CLAUDE.md
+
 # Data and outputs (users provide their own)
 data/
 output/
