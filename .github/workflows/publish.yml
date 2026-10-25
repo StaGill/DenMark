@@ -1,0 +1,56 @@
+# Publishes the Python package to PyPI when a GitHub release is published.
+# One-time setup: on PyPI, add a trusted publisher for the project "denmark" (owner StaGill, repository DenMark,
+# workflow publish.yml, environment pypi), and create the "pypi" environment under Settings > Environments.
+name: publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A version number can be published to PyPI only once, so the tag must match both packages.
+      - name: Check that the release tag matches DESCRIPTION and denmark.__version__
+        run: |
+          r_version=$(sed -n 's/^Version:[[:space:]]*//p' DESCRIPTION | tr -d '[:space:]')
+          py_version=$(python -c 'import re; print(re.search(r"__version__\s*=\s*[\x22\x27]([^\x22\x27]+)", open("python/denmark/__init__.py").read())[1])')
+          test "${GITHUB_REF_NAME}" = "v${r_version}" || { echo "tag ${GITHUB_REF_NAME} does not match Version ${r_version} in DESCRIPTION"; exit 1; }
+          test "${GITHUB_REF_NAME}" = "v${py_version}" || { echo "tag ${GITHUB_REF_NAME} does not match __version__ ${py_version} in python/denmark/__init__.py"; exit 1; }
+
+      - run: pip install build
+
+      - run: python -m build python
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: python/dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/denmark
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: python/dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist/

@@ -1,0 +1,263 @@
+---
+title: "Get started with DenMark"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Get started with DenMark}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7,
+                      fig.height = 3.4, out.width = "100%")
+cmdstan_ok <- requireNamespace("cmdstanr", quietly = TRUE) &&
+  !is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE))
+sf_ok <- requireNamespace("sf", quietly = TRUE)
+```
+
+DenMark measures how gene expression depends on local cell density in
+single-cell resolution spatial transcriptomics data. Cell locations form a
+point pattern and the counts of a gene are its marks. After the cells are
+binned on a regular grid over the tissue, the DenMark model for grid cell $g$
+with area $|g|$ inside the tissue, cell count $Y(g)$ and summed expression
+$M(g)$ is
+
+$$
+\begin{aligned}
+Y(g) &\sim \text{Poisson}\{\lambda_1(g)\}, & \log\lambda_1(g) &= \log|g| + \beta_0 + a_{11}w_1(g),\\
+M(g)\mid Y(g) &\sim \text{Poisson}\{\lambda_2(g)\}, & \log\lambda_2(g) &= \beta_1 + \log\{Y(g)+0.05\} + a_{21}w_1(g) + a_{22}w_2(g),
+\end{aligned}
+$$
+
+where $w_1$ and $w_2$ are independent unit-variance Gaussian processes with
+Matern-3/2 covariance, approximated by Hilbert space basis functions (HSGP).
+With $a_{11} = \sigma_1$, $a_{21} = \sigma_2\rho$ and
+$a_{22} = \sigma_2\sqrt{1-\rho^2}$, the parameter $\rho$ (`Astar[2,1]` in
+Stan) is the density-expression correlation.
+
+This vignette runs the workflow on the bundled toy data, where the true
+correlations are known, so every estimate can be checked against the truth.
+`r if (!sf_ok) "**The sf package was not available when this page was built, so the chunks from the tissue boundary on were not run.**" else if (!cmdstan_ok) "**CmdStan was not available when this page was built, so the model-fitting chunks below were not run.**" else ""`
+
+## Installation
+
+DenMark fits its models with Stan through
+[cmdstanr](https://mc-stan.org/cmdstanr/), which needs a working CmdStan
+installation, and computes the tissue boundary with sf. Install them once:
+
+```{r install, eval = FALSE}
+install.packages("cmdstanr",
+                 repos = c("https://stan-dev.r-universe.dev", getOption("repos")))
+cmdstanr::install_cmdstan()
+install.packages("sf")
+```
+
+## The toy data
+
+`denmark_toy_data()` returns a tissue section simulated by
+`denmark_simulate()`: 7,449 cells in an irregular, lobed section inside a
+6 x 4 window, one row per cell, with the cell type and the counts of three
+genes. The 3,449 Tumor cells are the population analyzed; their true
+density-expression correlations are 0.6 for geneA, 0 for geneB and -0.6 for
+geneC. The 4,000 Other cells only delineate the tissue.
+
+```{r toy}
+library(DenMark)
+library(ggplot2)
+
+toy <- denmark_toy_data()
+head(toy)
+table(toy$celltype)
+tumor <- subset(toy, celltype == "Tumor", select = -celltype)
+truth <- c(geneA = 0.6, geneB = 0, geneC = -0.6)
+```
+
+```{r toy-plot, fig.height = 3.6}
+ggplot(tumor, aes(x, y, color = geneA)) +
+  geom_point(size = 0.6) +
+  scale_color_viridis_c(option = "magma") +
+  coord_equal() +
+  theme_classic()
+```
+
+## Tissue boundary
+
+A tissue section is rarely a rectangle. If the grid covered the bounding box
+of the cells, grid cells outside the tissue would hold no cells because there
+is no tissue there, and the model would read them as regions of low cell
+density. `denmark_alpha_shape()` delineates the tissue as an alpha shape: it
+triangulates the cell locations and keeps every Delaunay triangle whose
+circumradius is below $\alpha$, by default three times the median Delaunay
+edge length. The boundary is computed from all cells of the section, not only
+the Tumor cells, because the region where a Tumor cell could have been
+observed is the whole tissue.
+
+```{r boundary, eval = sf_ok}
+tissue <- denmark_alpha_shape(toy$x, toy$y)
+c(alpha = attr(tissue, "alpha"), area = as.numeric(sf::st_area(tissue)))
+```
+
+## Gridding
+
+`buildgridpp()` assigns every cell to one grid cell and returns the cell
+counts $Y(g)$ and the summed expression $M(g)$. Grid cells are ordered with
+x varying fastest. With `boundary`, the grid spans the extent of the tissue,
+and each grid cell is classified as interior (entirely inside the tissue),
+boundary (partly inside) or exterior, with its area inside the tissue in the
+column `area`.
+
+```{r grid, eval = sf_ok, fig.width = 8, fig.height = 3.6}
+gridded <- buildgridpp(grid_size = 10, dataset = tumor, gene = "geneA",
+                       boundary = tissue)
+head(gridded$grid)
+table(gridded$grid$type)
+plot_denmark_boundary(toy, tissue, grid = gridded,
+                      highlight = toy$celltype == "Tumor")
+```
+
+Exterior grid cells are dropped from the model, and boundary grid cells enter
+with their area inside the tissue, so the area offset $\log|g|$ differs
+between grid cells. `plot_denmark_grid()` shows the gridded counts inside the
+tissue.
+
+```{r grid-plot, eval = sf_ok}
+plot_denmark_grid(gridded)
+```
+
+`denmark_prepare()` builds the Stan input that `DenMark()` uses: it drops the
+exterior grid cells, centers the region of interest at the origin, uses the
+grid centroids as HSGP coordinates and sets the HSGP domain to `boundfactor`
+times the half-ranges. With a boundary, `log_grid_area` holds one value per
+grid cell in the model.
+
+```{r prepare, eval = sf_ok}
+prep <- denmark_prepare(tumor, gene = "geneA", grid_size = 10, basis = 10,
+                        boundfactor = 1.5, boundary = tissue)
+str(prep$stan_data[c("n", "mstar", "L", "log_grid_area", "mrange")])
+```
+
+## Fitting the model
+
+`DenMark()` grids the data, compiles the Stan model once per session and
+samples. With `boundary`, it fits the variable-area model
+`DenMark-vararea.stan`, the same model with one area offset per grid cell;
+without it, the bounding box of the cells is gridded with a common grid area.
+The settings below keep the vignette fast; for real data, use the defaults
+(four chains of 1,000 warm-up and 1,000 sampling iterations and `basis = 25`)
+and check the diagnostics.
+
+```{r fit, eval = cmdstan_ok && sf_ok}
+fit <- DenMark(tumor, gene = "geneA", boundary = tissue, grid_size = 10,
+               basis = 10, boundfactor = 1.5, chains = 2, iter_warmup = 500,
+               iter_sampling = 500, seed = 2024, quiet = TRUE)
+fit
+```
+
+## Posterior summaries
+
+`denmark_summary()` reports the intercepts, the length-scales `ell[1]` and
+`ell[2]`, $\rho$ and the field standard deviations, with R-hat and effective
+sample sizes.
+
+```{r summary, eval = cmdstan_ok && sf_ok}
+denmark_summary(fit)[, c("variable", "mean", "sd", "q2.5", "q97.5",
+                         "rhat", "ess_bulk")]
+```
+
+`denmark_draws()` returns one row per posterior draw, including $\rho$. The
+red line marks the true value.
+
+```{r rho, eval = cmdstan_ok && sf_ok, fig.width = 5, fig.height = 3, out.width = "70%"}
+draws <- denmark_draws(fit)
+ggplot(draws, aes(rho)) +
+  geom_density(fill = "grey80") +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_vline(xintercept = truth[["geneA"]], color = "#B2182B") +
+  xlim(-1, 1) +
+  labs(x = expression(rho), y = "Posterior density") +
+  theme_classic()
+```
+
+## Latent fields
+
+`denmark_fields()` decomposes, for every grid cell in the model, the log cell
+intensity $\beta_0 + a_{11}w_1$ and the log expression per cell
+$\beta_1 + a_{21}w_1 + a_{22}w_2$ into the density field $a_{11}w_1$, the
+density-shared part of expression $a_{21}w_1$ and the expression-specific
+part $a_{22}w_2$.
+
+```{r fields, eval = cmdstan_ok && sf_ok, fig.height = 5.5}
+fields <- denmark_fields(fit)
+head(fields[, c("grid_index", "Y", "M", "eta1", "a11w1", "eta2", "a21w1", "a22w2")])
+plot_denmark_fields(fit, fields = fields)
+```
+
+## Spatial correlation ranges
+
+`denmark_decay()` gives the posterior spatial correlation of the density and
+expression fields as a function of distance, and the practical range, the
+distance at which the correlation falls to 0.05.
+
+```{r decay, eval = cmdstan_ok && sf_ok}
+decay <- denmark_decay(fit)
+decay$ranges
+plot_denmark_decay(fit, decay = decay)
+```
+
+## Scanning genes for density-correlated genes
+
+`denmark_scan()` fits DenMark to each gene and calls it a positively (PCG)
+or negatively (NCG) density-correlated gene when the 95% credible interval
+of $\rho$ lies above or below 0, and not a DCG otherwise.
+
+```{r scan, eval = cmdstan_ok && sf_ok}
+scan <- denmark_scan(tumor, genes = c("geneA", "geneB", "geneC"),
+                     boundary = tissue, grid_size = 10, basis = 10,
+                     boundfactor = 1.5, chains = 2, iter_warmup = 500,
+                     iter_sampling = 500, seed = 2024, verbose = FALSE)
+scan[, c("gene", "rho_mean", "rho_lower", "rho_upper", "class", "max_rhat")]
+```
+
+```{r scan-plot, eval = cmdstan_ok && sf_ok, fig.height = 2.6}
+plot_denmark_scan(scan)
+```
+
+## Checking the estimates against the truth
+
+With true values of 0.6, 0 and -0.6, the expected calls are PCG for geneA,
+not DCG for geneB and NCG for geneC. The table compares each posterior mean
+and 95% credible interval with the true $\rho$; `covered` shows whether the
+interval contains it.
+
+```{r check, eval = cmdstan_ok && sf_ok}
+check <- data.frame(gene = scan$gene, truth = truth[scan$gene],
+                    estimate = scan$rho_mean, lower = scan$rho_lower,
+                    upper = scan$rho_upper, class = scan$class,
+                    row.names = NULL)
+check$covered <- check$lower <= check$truth & check$truth <= check$upper
+check
+```
+
+## Using your own data
+
+DenMark needs one row per cell with the coordinates in columns `x` and `y`
+and raw counts in one column per gene. Compute the tissue boundary from all
+cells of the section, then analyze the cells of one population: filter
+uninformative genes, fit one gene, then scan the panel; with `save_dir`, each
+gene is saved as it finishes and an interrupted scan resumes where it
+stopped.
+
+```{r own-data, eval = FALSE}
+cells <- read.csv("cells.csv")   # all cells: x, y, celltype and gene counts
+tissue <- denmark_alpha_shape(cells$x, cells$y)
+focal <- subset(cells, celltype == "Tumor", select = -celltype)
+genes <- denmark_filter_genes(focal[, setdiff(names(focal), c("x", "y"))])
+fit <- DenMark(focal[, c("x", "y", genes[1])], gene = genes[1],
+               boundary = tissue, grid_size = 15, basis = 25, boundfactor = 1.5)
+dcg <- denmark_scan(focal[, c("x", "y", genes)], boundary = tissue,
+                    grid_size = 15, basis = 25, save_dir = "denmark_scan")
+```
+
+`denmark_check_hsgp()` compares the posterior length-scales with a rule of
+thumb for the number of basis functions and the boundary factor, and
+`denmark_save()` keeps a fit for later sessions.

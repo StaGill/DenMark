@@ -1,0 +1,67 @@
+# Based on the check-standard example of https://github.com/r-lib/actions (v2), with CmdStan for the model fits.
+name: R-CMD-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  R-CMD-check:
+    name: R CMD check (R ${{ matrix.r }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        r: [release, oldrel-1]
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      # CmdStan is built once per CmdStan release and cached; without it the fit tests skip.
+      - name: Find the latest CmdStan release
+        id: cmdstan
+        run: echo "version=$(gh api repos/stan-dev/cmdstan/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Cache CmdStan
+        id: cache-cmdstan
+        uses: actions/cache@v4
+        with:
+          path: ~/.cmdstan
+          key: cmdstan-${{ runner.os }}-${{ steps.cmdstan.outputs.version }}-r
+
+      - name: Install CmdStan
+        if: steps.cache-cmdstan.outputs.cache-hit != 'true'
+        run: cmdstanr::install_cmdstan(cores = 2)
+        shell: Rscript {0}
+
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: true
+          build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
+
+      # The built package has no README.md, so test-readme.R skips under R CMD check; run it from the source tree.
+      - name: Run the README examples
+        if: matrix.r == 'release'
+        run: testthat::test_local(".", filter = "readme")
+        shell: Rscript {0}

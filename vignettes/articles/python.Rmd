@@ -1,0 +1,141 @@
+---
+title: "Python interface"
+---
+
+The Python package `denmark` mirrors the R package function by function. It grids the cells in the same order, builds the same Stan data and fits the same Stan models through [cmdstanpy](https://mc-stan.org/cmdstanpy/), so results from the two languages are directly comparable. Tests check that both build the same Stan data from the toy data, with and without the tissue boundary.
+
+## Installation
+
+```bash
+pip install "git+https://github.com/StaGill/DenMark#subdirectory=python"
+python -m cmdstanpy.install_cmdstan
+```
+
+`denmark` needs Python 3.9 or later with numpy 1.21, pandas 1.3, scipy 1.7 and cmdstanpy 1.2 or later. Three extras are optional: `boundary` adds shapely (2.0 or later) for the tissue boundary, `plot` adds matplotlib (3.5 or later) for the figures, and `test` adds pytest (7.0 or later).
+
+```bash
+pip install "denmark[boundary,plot] @ git+https://github.com/StaGill/DenMark#subdirectory=python"
+```
+
+`python -m cmdstanpy.install_cmdstan` downloads and builds CmdStan once per machine and needs a C++ toolchain.
+
+## Quick start
+
+```python
+import denmark as dm
+
+toy = dm.datasets.load_toy()
+tissue = dm.alpha_shape(toy["x"], toy["y"])   # tissue boundary from all cells
+tumor = toy[toy["celltype"] == "Tumor"].drop(columns="celltype")
+res = dm.DenMark(tumor, gene="geneA", boundary=tissue, grid_size=10, basis=10,
+                 chains=2, iter_warmup=500, iter_sampling=500, seed=2024)
+print(res)
+```
+
+`dm.denmark` is a lowercase alias of `dm.DenMark`. A fit returns a `DenMarkResult`, whose methods take the place of the R post-processing functions.
+
+## R and Python side by side
+
+| Task | R | Python |
+|---|---|---|
+| Gene filter | `denmark_filter_genes(expr)` | `filter_genes(expr)` |
+| Tissue boundary | `denmark_alpha_shape(x, y)` | `alpha_shape(x, y)` |
+| Grid | `buildgridpp(grid_size, dataset, gene)` | `buildgridpp(grid_size, dataset, gene)` |
+| Grid centroids | `grid_pts_centroid(grid_size, dataset)` | `grid_pts_centroid(grid_size, dataset)` |
+| HSGP basis indices | `denmark_hsgp_indices(basis)` | `hsgp_indices(basis)` |
+| Stan data | `denmark_prepare()` | `prepare_data()` |
+| Compile a model | `denmark_model()` | `compile_model()` |
+| Initial values | `denmark_init()`, which returns a function | `make_init()`, which returns a dict |
+| Fit one gene | `DenMark()`, `DenMarkmain()` | `DenMark()` or `denmark()`, `DenMarkmain()` |
+| Posterior summary | `denmark_summary(fit)` | `res.summary()` |
+| Harmonized draws | `denmark_draws(fit)` | `res.draws()`, `res.rho` |
+| Latent fields | `denmark_fields(fit)` | `res.fields()` |
+| Correlation decay | `denmark_decay(fit)` | `res.decay()` |
+| HSGP check | `denmark_check_hsgp(fit)` | `res.check_hsgp()` |
+| Gene scan | `denmark_scan()` | `scan_genes()` |
+| Save and reload | `denmark_save()`, `denmark_load()` (RDS) | `save_result()`, `load_result()` (pickle) |
+| Simulation | `denmark_simulate()` | `simulate()` |
+| Toy data | `denmark_toy_data()` | `denmark.datasets.load_toy()` |
+| Figures | `plot_denmark_boundary()`, `plot_denmark_grid()`, `plot_denmark_fields()`, `plot_denmark_decay()`, `plot_denmark_scan()` (ggplot2) | `plot_boundary()`, `plot_grid()`, `plot_fields()`, `plot_decay()`, `plot_scan()` (matplotlib figures) |
+| Matérn-3/2 covariance | `matern32(d, sigma, rho)` | `matern32(d, sigma, ell)` |
+
+## Differences to keep in mind
+
+- Grid indices start at 1 in R (`grid_index = i + (j - 1) * nx`) and at 0 in Python (`grid_index = i + j * nx`). In both, x varies fastest.
+- The tissue boundary is an sf polygon with the attribute `alpha` in R and a `TissueBoundary` in Python, whose `.polygon` is a shapely polygon and whose `.alpha` and `.area` hold the alpha and the tissue area. Both languages take it as `boundary` in the same functions.
+- A few arguments have different names: `DenMark()` takes `inits` in Python and `init` in R, and `compile_model()` takes `force_compile` where `denmark_model()` takes `force_recompile`. The plot functions take `xlabel` and `ylabel` where R takes `xlab` and `ylab`, and `point_size` in `plot_boundary()` is a matplotlib marker area in points squared rather than a ggplot2 point size.
+- With a tissue boundary, the grid areas agree between the languages up to the last bit: sf computes polygon areas with GDAL's formula and shapely with GEOS's. Grid indices, types, counts and coordinates are identical.
+- The third argument of `matern32()` is the length-scale in both languages. R calls it `rho` for backward compatibility; it is not the density-expression correlation.
+- `simulate()` draws with numpy's generator, so it does not reproduce `denmark_simulate()` for the same seed. To compare the two languages on the same data, read the same file, as the toy data do.
+- With `save_dir`, `scan_genes()` caches one CSV row per gene and `denmark_scan()` one RDS file per gene, so an interrupted scan resumes where it stopped.
+- `keep_fit=False` keeps only the draws of the key parameters, which saves memory in large scans; `res.fields()` then needs a refit.
+
+## A full analysis
+
+```python
+import os
+import tempfile
+
+import denmark as dm
+
+toy = dm.datasets.load_toy()
+tumor = toy[toy["celltype"] == "Tumor"].drop(columns="celltype")
+
+# Tissue boundary: alpha shape of all cells, not only the Tumor cells
+tissue = dm.alpha_shape(toy["x"], toy["y"])
+print(tissue.alpha, tissue.area)
+
+# Grid: cell counts Y and summed expression M per grid, with x varying fastest;
+# with a boundary, each grid is interior, boundary or exterior
+g = dm.buildgridpp(10, tumor, gene="geneA", boundary=tissue)
+fig = dm.plot_boundary(toy, tissue, grid=g, highlight=toy["celltype"] == "Tumor")
+fig = dm.plot_grid(g)
+
+# Stan data: the grids inside the tissue, centered on the region, with one log area each;
+# HSGP basis functions and boundary factor
+prep = dm.prepare_data(tumor, gene="geneA", grid_size=10, basis=10, boundfactor=1.5,
+                       boundary=tissue)
+print(sorted(prep["stan_data"]))
+
+# Fit the model
+fit = dm.DenMark(tumor, gene="geneA", boundary=tissue, grid_size=10, basis=10,
+                 chains=2, iter_warmup=500, iter_sampling=500, seed=2024)
+
+# Interpret: draws of rho and of a11, a21, a22; latent fields; spatial correlation decay
+draws = fit.draws()
+print(draws["rho"].quantile([0.025, 0.5, 0.975]))
+fig = dm.plot_fields(fit)
+print(fit.decay()["ranges"])
+fig = dm.plot_decay(fit)
+print(fit.check_hsgp())
+
+# Screen genes: PCG if the 95% credible interval of rho lies above 0, NCG if below 0
+scan = dm.scan_genes(tumor, boundary=tissue, grid_size=10, basis=10, chains=2,
+                     iter_warmup=500, iter_sampling=500, seed=2024)
+print(scan[["gene", "rho_mean", "rho_lower", "rho_upper", "class"]])
+fig = dm.plot_scan(scan)
+
+# Keep a fit for a later session (the CmdStan output files are temporary)
+path = os.path.join(tempfile.gettempdir(), "denmark_geneA.pkl")
+dm.save_result(fit, path)
+fit = dm.load_result(path)
+```
+
+## Your own data
+
+Start from one row per cell of the section, with coordinates `x`, `y`, the cell type and raw counts, one column per gene. The tissue boundary uses all cells; the model uses the cells of the focal population:
+
+```python
+import pandas as pd
+import denmark as dm
+
+cells = pd.read_csv("cells.csv")   # columns x, y, celltype and one count column per gene
+tissue = dm.alpha_shape(cells["x"], cells["y"])
+focal = cells[cells["celltype"] == "Tumor"].drop(columns="celltype")
+genes = dm.filter_genes(focal.drop(columns=["x", "y"]))
+res = dm.DenMark(focal, gene=genes[0], boundary=tissue, grid_size=30)
+```
+
+## Stan models
+
+The package ships byte-identical copies of the Stan models in the R package's `inst/stan/` and compiles them on first use in a user cache directory, since the installed package may be read-only. The directory is set by the environment variable `DENMARK_CACHE_DIR` and defaults to `~/.cache/denmark`. With `boundary`, `DenMark()` fits `DenMark-vararea.stan`, the same model with one area offset per grid cell. `DenMark(stan_file=...)` fits a custom Stan file, which must declare the same data and parameters as `DenMark.stan`, or as `DenMark-vararea.stan` when a boundary is given.

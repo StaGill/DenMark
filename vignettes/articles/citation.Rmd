@@ -1,0 +1,31 @@
+---
+title: "Citation"
+---
+
+The DenMark manuscript is under review at *Cell Reports Methods*. If you use DenMark in your research, please cite the preprint:
+
+> Xu M, Schmidt AM, Zhang Q. DenMark: A Bayesian Hierarchical Model for Identifying Cell-Density Correlated Genes from Spatial Transcriptomics. *bioRxiv*, 2026. doi: [10.64898/2026.04.02.713482](https://doi.org/10.64898/2026.04.02.713482)
+
+GitHub's "Cite this repository" button uses the [`CITATION.cff`](https://github.com/StaGill/DenMark/blob/main/CITATION.cff) file in the repository. In R, `citation()` gives the reference for the paper and for the installed version of the package:
+
+```{r}
+citation("DenMark")
+```
+
+## BibTeX
+
+```bibtex
+@article{xu2026denmark,
+  title   = {{DenMark}: A Bayesian Hierarchical Model for Identifying Cell-Density Correlated Genes from Spatial Transcriptomics},
+  author  = {Xu, Mingchi and Schmidt, Alexandra M. and Zhang, Qihuang},
+  journal = {bioRxiv},
+  year    = {2026},
+  doi     = {10.64898/2026.04.02.713482},
+  note    = {Preprint; the revised manuscript is under review at Cell Reports Methods}
+}
+```
+
+## Corresponding authors
+
+Alexandra M. Schmidt (<alexandra.schmidt@mcgill.ca>) and Qihuang Zhang (<qihuang.zhang@mcgill.ca>, lead contact)\
+Department of Epidemiology, Biostatistics and Occupational Health, McGill University, Montreal, QC H3A 1Y7, Canada

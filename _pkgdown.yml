@@ -1,0 +1,80 @@
+url: https://stagill.github.io/DenMark/
+
+template:
+  bootstrap: 5
+  light-switch: true
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github, lightswitch]
+
+reference:
+  - title: Data preparation
+    desc: >
+      Quality control of genes, the tissue boundary, gridding of cell locations
+      and expression, and the Stan data with the inputs of the Hilbert space
+      Gaussian process (HSGP).
+    contents:
+      - denmark_filter_genes
+      - denmark_alpha_shape
+      - buildgridpp
+      - grid_pts_centroid
+      - denmark_hsgp_indices
+      - denmark_prepare
+  - title: Model fitting
+    desc: >
+      Fit the DenMark model, which estimates the density-expression
+      correlation rho.
+    contents:
+      - DenMark
+      - DenMarkmain
+      - denmark_model
+      - denmark_init
+  - title: Posterior summaries and interpretation
+    desc: >
+      Posterior summaries, draws of rho and the coregionalization
+      coefficients, latent-field decomposition, spatial correlation decay
+      and checks of the HSGP approximation.
+    contents:
+      - denmark_summary
+      - denmark_draws
+      - denmark_fields
+      - denmark_decay
+      - denmark_check_hsgp
+  - title: DCG discovery
+    desc: >
+      Fit many genes and call positively and negatively density-correlated
+      genes from the credible interval of rho.
+    contents:
+      - denmark_scan
+  - title: Visualization
+    contents:
+      - plot_denmark_boundary
+      - plot_denmark_grid
+      - plot_denmark_fields
+      - plot_denmark_decay
+      - plot_denmark_scan
+  - title: Simulation and toy data
+    contents:
+      - denmark_simulate
+      - denmark_toy_data
+  - title: Utilities
+    contents:
+      - denmark_save
+      - denmark_load
+      - matern32
+      - q2.5
+      - q25
+      - q50
+      - q75
+      - q97.5
+
+articles:
+  - title: Articles
+    navbar: ~
+    contents:
+      - articles/python
+      - articles/toy-data
+      - articles/case-studies
+      - articles/citation

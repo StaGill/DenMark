@@ -1,0 +1,105 @@
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+Rplots.pdf
+logs/
+*.Rcheck/
+DenMark_*.tar.gz
+inst/doc/
+
+# pkgdown output (the website is built by CI)
+docs/
+
+# Knitted vignettes and articles
+vignettes/**/*.html
+vignettes/**/*.R
+vignettes/**/*_files/
+vignettes/**/*_cache/
+
+# Compiled Stan models (cmdstanr and cmdstanpy write the executable next to the .stan file)
+*.exe
+*.hpp
+*.o
+inst/stan/DenMark
+inst/stan/DenMark-*
+DenMark-M2
+DenMark-M2-*
+M2-latent-field-mod*
+!*.stan
+
+# CmdStan output: draws (<model>-<timestamp>-<chain>-<id>.csv or <model>-<timestamp>_<chain>.csv) and console logs
+*-20[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]*.csv
+*-stdout.txt
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Data and outputs (users provide their own)
+data/
+output/
+output_*/
+denmark_fits/
+denmark_scan*/
+scan_*/
+*.rds
+*.h5
+*.h5ad
+
+# Files the packages and scripts need, kept despite the patterns above
+!python/denmark/data/
+!python/tests/data/
+!inst/extdata/*.csv.gz
+!python/denmark/data/*.csv.gz
+!python/tests/data/*.json
+!CodeInPaper/MERFISH-MouseBrain/grid_area/*.csv

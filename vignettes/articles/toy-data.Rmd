@@ -1,0 +1,101 @@
+---
+title: "Toy data"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 3.5)
+has_cmdstan <- requireNamespace("cmdstanr", quietly = TRUE) &&
+  !is.null(tryCatch(cmdstanr::cmdstan_version(), error = function(e) NULL))
+has_sf <- requireNamespace("sf", quietly = TRUE)
+```
+
+Both packages ship a simulated tissue section with a known answer, used by the examples and the tests. It plays the role of a planted signal: each gene of the analyzed cell type has a known density-expression correlation ρ, so a fit can be checked against the truth.
+
+## Contents
+
+- 7,449 cells of one tissue section, one row per cell. The section is an irregular, lobed shape inside the window [0, 6] x [0, 4], so the analysis needs a tissue boundary.
+- Columns `x` and `y` (coordinates), `celltype`, and `geneA`, `geneB` and `geneC` (counts).
+- 3,449 `Tumor` cells, the population analyzed, with true density-expression correlations ρ = 0.6 for `geneA`, 0 for `geneB` and -0.6 for `geneC`.
+- 4,000 `Other` cells, which only delineate the tissue; their counts carry no signal.
+
+```{r load}
+library(DenMark)
+toy <- denmark_toy_data()
+dim(toy)
+head(toy)
+table(toy$celltype)
+```
+
+In Python:
+
+```python
+import denmark as dm
+toy = dm.datasets.load_toy()
+print(toy.shape)
+print(toy["celltype"].value_counts())
+```
+
+## How it was made
+
+`data-raw/make_toy_data.R` simulates the data with
+
+```r
+denmark_simulate(rho = c(geneA = 0.6, geneB = 0, geneC = -0.6),
+                 width = 6, height = 4, n_cells = 5000, seed = 1,
+                 tissue = "irregular", n_other = 4000, celltype = "Tumor")
+```
+
+and writes `inst/extdata/denmark_toy.csv.gz`, with the coordinates rounded to six decimals. This is the simulation of `Tutorial_DenMark.Rmd`, where the analyzed cell type is labeled Invasive_Tumor. `n_cells` is an upper limit: the thinned point pattern holds 3,449 Tumor cells, and all of them are kept. The Python package ships a copy of the same file as `python/denmark/data/denmark_toy.csv.gz`, and a test checks that the two are identical. The script also writes the Stan data that R builds for `geneA` of the Tumor cells, against which the tests check Python: `python/tests/data/toy_stan_data.json` without a boundary, and `python/tests/data/toy_stan_data_boundary.json` with the alpha-shape boundary of all cells, together with its alpha, the tissue area and the area and type of every grid cell.
+
+`denmark_simulate()` follows the DenMark data-generating process. Candidate locations are drawn uniformly over the window and, with `tissue = "irregular"`, kept only inside a lobed tissue outline. The Tumor cells are an inhomogeneous Poisson process obtained by thinning the candidates, with log intensity a11 w1(s) up to a constant, where w1 is a smooth zero-mean Gaussian field of approximately Matérn-3/2 covariance and length-scale 1. The count of gene k in a Tumor cell at location s is Poisson with log mean
+
+beta1 + sigma2 (ρ_k w1(s) + sqrt(1 - ρ_k^2) w2k(s)),
+
+where w2k is a second, gene-specific field. The defaults are a11 = 1, sigma2 = 0.8 and beta1 = 0.5. The fields are standardized, and each w2k is orthogonalized against w1, on a regular lattice over the tissue, so the spatial correlation of the two fields equals ρ_k. The Other cells are drawn from the candidates that the thinning rejected, so they are densest where the Tumor cells are sparse; their counts are Poisson with mean 0.3. Python's `simulate()` follows the same process with numpy's generator and does not reproduce the R draws, which is why the toy data are shared as a file.
+
+## Tissue boundary and grid
+
+The tissue boundary is the alpha shape of all cells, Tumor and Other. On the 10 x 10 grid of the examples, each grid cell is interior, boundary or exterior to the tissue, and the exterior grid cells are left out of the model.
+
+```{r grid, eval = has_sf, fig.width = 8, fig.height = 3.6}
+tissue <- denmark_alpha_shape(toy$x, toy$y)
+c(alpha = attr(tissue, "alpha"), area = as.numeric(sf::st_area(tissue)))
+tumor <- subset(toy, celltype == "Tumor", select = -celltype)
+g <- buildgridpp(grid_size = 10, dataset = tumor, gene = "geneA", boundary = tissue)
+table(g$grid$type)
+plot_denmark_boundary(toy, tissue, grid = g, highlight = toy$celltype == "Tumor")
+```
+
+```{r grid-plot, eval = has_sf}
+plot_denmark_grid(g)
+```
+
+## Fits against the truth
+
+The settings below are kept short so the page builds quickly: a 10 x 10 grid, 10 x 10 basis functions and two chains of 500 warm-up and 500 sampling iterations. An analysis uses the default sampler settings: four chains of 1,000 warm-up and 1,000 sampling iterations.
+
+```{r scan, eval = has_cmdstan && has_sf, message = FALSE}
+scan <- denmark_scan(tumor, boundary = tissue, grid_size = 10, basis = 10,
+                     chains = 2, iter_warmup = 500, iter_sampling = 500, seed = 2024)
+scan$true_rho <- c(geneA = 0.6, geneB = 0, geneC = -0.6)[scan$gene]
+scan[, c("gene", "true_rho", "rho_mean", "rho_lower", "rho_upper", "class", "converged")]
+plot_denmark_scan(scan)
+```
+
+```{r no-cmdstan, echo = FALSE, results = "asis", eval = !(has_cmdstan && has_sf)}
+cat("> CmdStan or sf was not available when this page was built, so the chunks that need them were not run.",
+    "Install them with `cmdstanr::install_cmdstan()` and `install.packages(\"sf\")` and rebuild the page to see the results.\n")
+```
+
+The same scan in Python:
+
+```python
+import denmark as dm
+
+toy = dm.datasets.load_toy()
+tissue = dm.alpha_shape(toy["x"], toy["y"])
+tumor = toy[toy["celltype"] == "Tumor"].drop(columns="celltype")
+scan = dm.scan_genes(tumor, boundary=tissue, grid_size=10, basis=10, chains=2,
+                     iter_warmup=500, iter_sampling=500, seed=2024)
+print(scan[["gene", "rho_mean", "rho_lower", "rho_upper", "class", "converged"]])
+```

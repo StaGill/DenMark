@@ -1,0 +1,35 @@
+Package: DenMark
+Type: Package
+Title: Cell-Density Correlated Genes from Spatial Transcriptomics
+Version: 0.9.0
+Authors@R: c(
+    person("Mingchi", "Xu", role = "aut"),
+    person(c("Alexandra", "M."), "Schmidt", role = "aut"),
+    person("Qihuang", "Zhang", email = "qihuang.zhang@mcgill.ca",
+           role = c("aut", "cre"), comment = c(ORCID = "0000-0003-1455-2159"))
+  )
+Description: Quantifies the dependence between local cell density and gene
+    expression in single-cell resolution spatial transcriptomics data, such as
+    data from the Xenium and MERFISH platforms. Cell locations form a point
+    pattern and gene counts are its marks. After aggregation on a regular
+    grid, cell counts and summed expression follow Poisson models driven by
+    two coregionalized latent Gaussian fields with Matern covariance,
+    approximated by Hilbert space basis functions; the correlation between
+    the two fields measures the density-expression dependence. Models are
+    fitted with 'Stan' through 'cmdstanr'. Functions cover the tissue
+    boundary (an alpha shape of the cells), gridding, model fitting,
+    posterior summaries, latent-field decomposition, spatial correlation
+    ranges, and gene scans that call density-correlated genes.
+License: MIT + file LICENSE
+URL: https://stagill.github.io/DenMark/, https://github.com/StaGill/DenMark
+BugReports: https://github.com/StaGill/DenMark/issues
+Depends: R (>= 4.1.0)
+Imports: cmdstanr (>= 0.5.0), posterior, ggplot2 (>= 3.4.0), rlang, stats, tools, utils
+Suggests: jsonlite, patchwork, sf, testthat (>= 3.0.0), knitr, rmarkdown
+Remotes: stan-dev/cmdstanr
+Additional_repositories: https://stan-dev.r-universe.dev
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.1

@@ -1,0 +1,25 @@
+---
+title: "Case studies"
+---
+
+The scripts under [`CodeInPaper/`](https://github.com/StaGill/DenMark/tree/main/CodeInPaper) reproduce the analyses of the DenMark manuscript. Release v1.0.0 will be the version that accompanies the manuscript, and later releases may change the results, so run the scripts from a checkout of that release once it is tagged.
+
+Each script begins with a **CONFIGURE ME** block that sets `DATA_DIR`, `OUTPUT_DIR` and `REPO_ROOT` for your environment. Each subfolder has its own `README.md`, and [`CodeInPaper/README.md`](https://github.com/StaGill/DenMark/blob/main/CodeInPaper/README.md) maps the scripts to the figures they produce, gives the order in which they run and lists any inputs not yet in the repository. That table is the authoritative one; the overview below follows the Results of the manuscript.
+
+| Subfolder | Case study | Results subsection | Dataset access |
+|---|---|---|---|
+| `Simulation/` | False and true positive rates of DCG calls on simulated genes of known status | Validation of DenMark on simulated data | Simulated by the scripts |
+| `MERFISH-MouseBrain/` | Astrocytes in Vizgen MERSCOPE mouse brain sections: section S3R1 in detail and nine sections for reproducibility | Density-correlated genes in mouse-brain astrocytes complement cell-type markers and are reproducible across sections | Vizgen public data release (Google Cloud Storage) |
+| `Xenium-BreastCancer/` | Three regions of interest (invasive tumor, DCIS-1, DCIS-2) and whole-section fits of DCIS, invasive tumor and CD8+ T cells in a 10x Xenium breast tumor | Density-correlated genes reveal the spatial antagonism of tumor and immune compartments in breast cancer | 10x Genomics |
+| `OvarianCancer-VisiumHD-Xenium5K/` | Density correlations of tumor-cell programs on adjacent Visium HD and Xenium Prime 5K sections of one ovarian tumor | DenMark recovers program-level density correlations that transfer across platforms | 10x Genomics |
+| `Visium-ColorectalCancer/` | A 10x Visium CytAssist colorectal cancer section with nuclei counted from the H&E image, and Visium-like spots built from the Xenium breast section | DenMark extends to spot-level Visium data and recovers single-cell density correlations after aggregation | 10x Genomics |
+
+The mouse-brain sections and the ovarian Visium HD and Xenium sections are gridded over an alpha-shape tissue domain, which the packages now provide (`denmark_alpha_shape()` and `boundary =`). Two other features of these analyses arrive in the packages in v1.0.0: the total transcript count as the expression offset (Visium HD and Visium) and the pooling of Visium spots into super-grids. The scripts are kept as they were run and fit their models directly, with the Stan files bundled in `inst/stan/` (the variable-area and total-UMI versions of the model) or kept next to the script. Three models that some scripts call are not yet in the repository; `CodeInPaper/README.md` lists them under Missing files.
+
+## Data sources
+
+- **Mouse brain MERFISH** (Vizgen MERSCOPE, nine coronal sections): <https://console.cloud.google.com/storage/browser/public-datasets-vizgen-merfish>
+- **Human breast cancer** (10x Xenium): <https://www.10xgenomics.com/products/xenium-in-situ/human-breast-dataset-explorer>
+- **Human ovarian cancer, Visium HD** (fresh frozen): <https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-ovarian-cancer-discovery-fresh-frozen>
+- **Human ovarian cancer, Xenium Prime 5K and Xenium v1** (fresh frozen): <https://www.10xgenomics.com/datasets/xenium-comparison-fresh-frozen-human-ovarian-cancer>
+- **Human colorectal cancer** (10x Visium CytAssist, FFPE, 11 mm capture area): <https://www.10xgenomics.com/datasets/human-colorectal-cancer-11-mm-capture-area-ffpe-2-standard>

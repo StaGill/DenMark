@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use DenMark in your research, please cite the accompanying paper."
+title: "DenMark: A Bayesian Hierarchical Model for Identifying Cell-Density Correlated Genes from Spatial Transcriptomics"
+type: software
+version: "0.9.0"
+authors:
+  - family-names: Xu
+    given-names: Mingchi
+    affiliation: "Department of Epidemiology, Biostatistics and Occupational Health, McGill University"
+  - family-names: Schmidt
+    given-names: Alexandra M.
+    affiliation: "Department of Epidemiology, Biostatistics and Occupational Health, McGill University"
+  - family-names: Zhang
+    given-names: Qihuang
+    email: qihuang.zhang@mcgill.ca
+    affiliation: "Department of Epidemiology, Biostatistics and Occupational Health, McGill University"
+    orcid: "https://orcid.org/0000-0003-1455-2159"
+repository-code: "https://github.com/StaGill/DenMark"
+url: "https://stagill.github.io/DenMark/"
+keywords:
+  - spatial transcriptomics
+  - cell density
+  - density-correlated genes
+  - marked point process
+  - log-Gaussian Cox process
+  - Hilbert space Gaussian process
+  - Bayesian inference
+  - Stan
+license: MIT
+preferred-citation:
+  type: article
+  title: "DenMark: A Bayesian Hierarchical Model for Identifying Cell-Density Correlated Genes from Spatial Transcriptomics"
+  authors:
+    - family-names: Xu
+      given-names: Mingchi
+    - family-names: Schmidt
+      given-names: Alexandra M.
+    - family-names: Zhang
+      given-names: Qihuang
+      email: qihuang.zhang@mcgill.ca
+      orcid: "https://orcid.org/0000-0003-1455-2159"
+  journal: "bioRxiv"
+  year: 2026
+  month: 4
+  doi: "10.64898/2026.04.02.713482"
+  url: "https://doi.org/10.64898/2026.04.02.713482"
+  notes: "Preprint. The revised manuscript is under review at Cell Reports Methods."
