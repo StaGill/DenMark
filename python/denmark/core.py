@@ -43,6 +43,7 @@ import os
 import re
 import time
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
@@ -59,7 +60,7 @@ except ImportError:  # pragma: no cover - the module still imports for grid work
 __all__ = [
     "filter_genes", "alpha_shape", "TissueBoundary", "buildgridpp", "grid_pts_centroid",
     "hsgp_indices", "prepare_data", "compile_model", "make_init", "DenMark", "denmark",
-    "DenMarkmain", "DenMarkResult", "scan_genes",
+    "DenMarkmain", "DenMarkResult", "scan_genes", "from_anndata", "annotate",
     "matern32", "simulate", "save_result", "load_result", "plot_boundary", "plot_grid",
     "plot_fields", "plot_decay", "plot_scan",
 ]
@@ -892,12 +893,17 @@ def DenMarkmain(grid_size, dataset, basis, boundfactor, L1=None, L2=None,
 
 def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
                save_dir=None, cred_level=0.95, quiet=True,
-               verbose=True, **kwargs) -> pd.DataFrame:
+               verbose=True, n_jobs=1, **kwargs) -> pd.DataFrame:
     """Fit DenMark gene by gene and call density-correlated genes:
     PCG if the credible interval of rho is above 0, NCG if below 0, else
     "not DCG". With save_dir, one CSV row per gene is cached (resumable).
+    n_jobs genes are fitted at the same time; every gene keeps its seed, so
+    the results equal those of the sequential scan, and each fit also runs
+    its chains in parallel, so a scan uses up to n_jobs * chains cores.
     Further arguments (grid_size, basis, boundary, ...) go to DenMark()."""
     _removed_args(kwargs)
+    if not isinstance(n_jobs, (int, np.integer)) or isinstance(n_jobs, bool) or n_jobs < 1:
+        raise ValueError("`n_jobs` must be a positive whole number.")
     data = pd.DataFrame(data)
     if genes is None:
         genes = [c for c in data.columns if c not in ("x", "y")]
@@ -907,12 +913,11 @@ def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
     a = (1 - cred_level) / 2
-    rows = []
-    for g in genes:
+
+    def one_gene(g):
         fcache = Path(save_dir) / f"denmark_{g}.csv" if save_dir else None
         if fcache is not None and fcache.exists():
-            rows.append(pd.read_csv(fcache).iloc[0].to_dict())
-            continue
+            return pd.read_csv(fcache).iloc[0].to_dict()
         try:
             f2 = DenMark(data[["x", "y", g]], gene=g, keep_fit=False,
                          quiet=quiet, **kwargs)
@@ -934,13 +939,83 @@ def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
             row = dict(gene=g, error=str(ex))
             if verbose:
                 print(f"[{g}] failed: {ex}")
-        rows.append(row)
+        return row
+
+    if n_jobs > 1 and len(genes) > 1:
+        rows = _parallel_map(one_gene, genes, n_jobs, kwargs)
+    else:
+        rows = [one_gene(g) for g in genes]
     res = pd.DataFrame(rows)
     res["class"] = np.where(res["rho_lower"] > 0, "PCG",
                             np.where(res["rho_upper"] < 0, "NCG", "not DCG"))
     res.loc[res["rho_lower"].isna(), "class"] = None
     res["converged"] = (res["max_rhat"] < 1.01) & (res["divergences"] == 0)
     return res.sort_values("rho_mean", ascending=False).reset_index(drop=True)
+
+
+def _parallel_map(one_gene, genes, n_jobs, kwargs):
+    """Fit genes at the same time. Each fit runs CmdStan in its own processes,
+    so threads suffice; the model is compiled once before they start, and
+    every gene keeps its seed, so the results equal the sequential run."""
+    compile_model(kwargs.get("stan_file"), vararea=kwargs.get("boundary") is not None)
+    with ThreadPoolExecutor(max_workers=min(n_jobs, len(genes))) as pool:
+        return list(pool.map(one_gene, genes))
+
+
+def from_anndata(adata, celltype_key, spatial_key="spatial", layer=None,
+                 genes=None) -> pd.DataFrame:
+    """Cell table from an AnnData object: the coordinates in
+    ``adata.obsm[spatial_key]``, the cell type in ``adata.obs[celltype_key]``
+    and the raw counts (``adata.layers[layer]``, or ``adata.X``), one row per
+    cell. This covers scanpy and squidpy objects and the tables of a SpatialData
+    object (``sdata.tables["table"]`` from spatialdata-io for Xenium, MERSCOPE
+    or CosMx). Compute the tissue boundary from all rows with alpha_shape(),
+    then analyze the cells of one type.
+
+    :param adata: an AnnData object, one observation per cell.
+    :param celltype_key: column of ``adata.obs`` holding the cell types.
+    :param spatial_key: key of ``adata.obsm`` holding the coordinates.
+    :param layer: layer holding the raw counts (default: ``adata.X``).
+    :param genes: genes to include (default: all variables); each becomes a
+        dense column, so select genes for whole-transcriptome panels.
+    :return: DataFrame with x, y, celltype and one count column per gene,
+        indexed by the cell names.
+    """
+    if celltype_key not in adata.obs:
+        raise ValueError(f"'{celltype_key}' is not a column of adata.obs.")
+    if spatial_key not in adata.obsm:
+        raise ValueError(f"'{spatial_key}' is not a key of adata.obsm.")
+    names = [str(v) for v in adata.var_names]
+    pos = {g: k for k, g in reversed(list(enumerate(names)))}   # first occurrence
+    genes = names if genes is None else [str(g) for g in genes]
+    missing = [g for g in genes if g not in pos]
+    if missing:
+        raise ValueError(f"Not variables of adata: {', '.join(missing[:5])}")
+    X = adata.layers[layer] if layer is not None else adata.X
+    expr = X[:, [pos[g] for g in genes]]
+    expr = expr.toarray() if hasattr(expr, "toarray") else np.asarray(expr)
+    if not np.allclose(expr, np.round(expr)):
+        warnings.warn("The counts are not whole numbers: DenMark needs raw counts "
+                      "(pass the layer that holds them, for example layer='counts').")
+    coords = np.asarray(adata.obsm[spatial_key])[:, :2]
+    out = pd.DataFrame({"x": coords[:, 0], "y": coords[:, 1],
+                        "celltype": adata.obs[celltype_key].astype(str).to_numpy()},
+                       index=adata.obs_names)
+    return pd.concat([out, pd.DataFrame(expr, columns=genes, index=adata.obs_names)], axis=1)
+
+
+def annotate(adata, scan: pd.DataFrame, prefix="denmark_"):
+    """Write the results of scan_genes() into ``adata.var``: the posterior mean
+    of rho, its credible interval and the call, as the columns
+    ``<prefix>rho``, ``<prefix>rho_lower``, ``<prefix>rho_upper`` and
+    ``<prefix>class``. Variables that were not scanned get NaN. Modifies adata
+    in place and returns it."""
+    res = pd.DataFrame(scan).drop_duplicates("gene").set_index("gene")
+    names = pd.Index([str(v) for v in adata.var_names])
+    for new, col in (("rho", "rho_mean"), ("rho_lower", "rho_lower"),
+                     ("rho_upper", "rho_upper"), ("class", "class")):
+        adata.var[prefix + new] = res[col].reindex(names).to_numpy()
+    return adata
 
 
 # --------------------------------------------------------------------------- #

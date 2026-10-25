@@ -24,6 +24,19 @@ Mingchi Xu's revision of the analysis functions (`DenMark/DenMark-functions.R`, 
 * `denmark_init()` (Python: `make_init()`) starts `beta0` at the log of the number of cells per unit of tissue area.
 * The boundary needs sf in R, a new suggested package, and shapely 2.0 or later in Python, installed with the extra `boundary` (`pip install "denmark[boundary] @ git+https://github.com/StaGill/DenMark#subdirectory=python"`) or with `pip install shapely`.
 
+## Seurat and AnnData
+
+* `denmark_from_seurat()` reads the cell centroids, a cell-type column and the raw counts from a Seurat object with imaging-based data (Xenium, MERSCOPE, CosMx), and `denmark_annotate()` writes the scan results into its gene metadata; SeuratObject is a new suggested package. In Python, `from_anndata()` reads an AnnData object (scanpy, squidpy, or a SpatialData table from spatialdata-io) and `annotate()` writes the results into `adata.var`.
+
+## Scans of whole panels
+
+* `denmark_scan(workers = )` and `scan_genes(n_jobs = )` fit several genes at a time (R: separate sessions through future.apply, a new suggested package; Python: threads, each driving its own CmdStan processes). Every gene keeps its seed, so the results equal those of the sequential scan.
+* `inst/slurm/` holds a template that fits one gene per SLURM array task, can be resubmitted after an interruption, and collects the results with `denmark_scan()`.
+
+## Help for users
+
+* A FAQ page (installation, input data, grid and basis settings, convergence, reading the results), a Google Colab notebook of the toy-data workflow, and issue templates for bug reports and questions about data.
+
 ## Planned for 1.0.0
 
 * Total-UMI expression offset for sequencing-based platforms (Visium HD and Visium).

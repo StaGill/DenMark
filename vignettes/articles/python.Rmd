@@ -28,7 +28,7 @@ The Python package `denmark` builds the same Stan data as the R package and
 fits the same Stan models through [cmdstanpy](https://mc-stan.org/cmdstanpy/);
 [Get started in R](DenMark.html) walks through the same steps in R, and
 [R and Python side by side](r-python.html) lists the function names of both. The
-code below is shown without its output, and the package tests run it as written.
+code below is shown without its output, and the package tests run it as written. To try it without installing anything, open the same workflow in Google Colab: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/StaGill/DenMark/blob/main/python/notebooks/denmark_colab.ipynb)
 
 ## Installation
 
@@ -214,12 +214,22 @@ print(scan[["gene", "rho_mean", "rho_lower", "rho_upper", "class", "max_rhat"]])
 fig = dm.plot_scan(scan)
 ```
 
+For a full panel, `n_jobs=4` fits four genes at a time, with the same results
+as the sequential scan; every fit also runs its chains in parallel, so plan for
+`n_jobs` times `chains` cores. On a cluster, run one gene per SLURM array task
+with `dm.scan_genes(..., genes=[gene], save_dir=...)`, then collect the table
+with the same call on all genes, which loads the saved results instead of
+refitting; the R package ships a template of this workflow
+(`system.file("slurm", package = "DenMark")`).
+
 ## Checking the estimates against the truth
 
 With true values of 0.6, 0 and -0.6, the expected calls are PCG for geneA,
 not DCG for geneB and NCG for geneC. The table compares each posterior mean
 and 95% credible interval with the true $\rho$; `covered` shows whether the
-interval contains it.
+interval contains it. [Reading density-correlated genes](reading-dcgs.html)
+explains what a call can and cannot tell you, and how to tell a change within the
+focal cells from a signal of their neighborhood.
 
 ```python
 check = pd.DataFrame({"gene": scan["gene"], "truth": scan["gene"].map(truth),
@@ -240,6 +250,8 @@ stopped.
 
 ```python
 cells = pd.read_csv("cells.csv")   # all cells: x, y, celltype and gene counts
+# or from an AnnData object (scanpy, or sdata.tables["table"] from spatialdata-io):
+# cells = dm.from_anndata(adata, celltype_key="celltype")
 tissue = dm.alpha_shape(cells["x"], cells["y"])
 focal = cells[cells["celltype"] == "Tumor"].drop(columns="celltype")
 genes = dm.filter_genes(focal.drop(columns=["x", "y"]))
@@ -249,6 +261,8 @@ dcg = dm.scan_genes(focal[["x", "y"] + genes], boundary=tissue, grid_size=15, ba
                     save_dir="denmark_scan")
 ```
 
-`fit.check_hsgp()` compares the posterior length-scales with a rule of thumb
-for the number of basis functions and the boundary factor, and
-`dm.save_result()` keeps a fit for later sessions.
+`dm.annotate(adata, dcg)` writes the estimates, their intervals and the calls
+back into the AnnData object's gene table (`adata.var`). `fit.check_hsgp()`
+compares the posterior length-scales with a rule of thumb for the number of
+basis functions and the boundary factor, and `dm.save_result()` keeps a fit for
+later sessions.

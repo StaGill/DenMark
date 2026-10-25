@@ -25,7 +25,7 @@ URL: https://stagill.github.io/DenMark/, https://github.com/StaGill/DenMark
 BugReports: https://github.com/StaGill/DenMark/issues
 Depends: R (>= 4.1.0)
 Imports: cmdstanr (>= 0.5.0), posterior, ggplot2 (>= 3.4.0), rlang, stats, tools, utils
-Suggests: jsonlite, patchwork, sf, testthat (>= 3.0.0), knitr, rmarkdown
+Suggests: future, future.apply, jsonlite, Matrix, patchwork, SeuratObject, sf, testthat (>= 3.0.0), knitr, rmarkdown
 Remotes: stan-dev/cmdstanr
 Additional_repositories: https://stan-dev.r-universe.dev
 VignetteBuilder: knitr

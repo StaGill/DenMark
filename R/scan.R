@@ -18,6 +18,13 @@
 #' @param quiet Suppress the sampler output, passed to [DenMark()].
 #' @param verbose Report one message per gene with rho and its credible
 #'   interval.
+#' @param workers Number of genes fitted at the same time, each in its own R
+#'   session (needs the future.apply package and an installed DenMark). Every
+#'   gene keeps its seed, so the results equal those of the sequential scan.
+#'   Each fit also runs its chains in parallel (`parallel_chains`, by default
+#'   `chains`), so a scan uses up to `workers * chains` cores. For a cluster,
+#'   `system.file("slurm", package = "DenMark")` holds a template that fits
+#'   one gene per SLURM array task.
 #' @param ... Further arguments passed to [DenMark()] (`grid_size`, `basis`,
 #'   ...).
 #' @return Data frame with one row per gene, sorted by decreasing posterior
@@ -38,8 +45,11 @@
 #'                      iter_sampling = 300, seed = 2024, verbose = FALSE)
 #' scan[, c("gene", "rho_mean", "rho_lower", "rho_upper", "class")]
 denmark_scan <- function(data, genes = NULL, save_dir = NULL,
-                         cred_level = 0.95, quiet = TRUE, verbose = TRUE, ...) {
+                         cred_level = 0.95, quiet = TRUE, verbose = TRUE,
+                         workers = 1, ...) {
   .denmark_removed_args(...)
+  if (length(workers) != 1 || is.na(workers) || workers < 1 || workers != round(workers))
+    stop("`workers` must be a positive whole number.")
   data <- as.data.frame(data)
   if (is.null(genes)) genes <- setdiff(names(data), c("x", "y"))
   genes <- intersect(genes, names(data))
@@ -78,7 +88,9 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
     row
   }
 
-  rows <- lapply(genes, one_gene)
+  rows <- if (workers > 1 && length(genes) > 1) {
+    .denmark_parallel_lapply(genes, one_gene, workers, list(...))
+  } else lapply(genes, one_gene)
   cols <- unique(unlist(lapply(rows, names)))
   res <- do.call(rbind, lapply(rows, function(r) {
     r[setdiff(cols, names(r))] <- NA; r[cols]
@@ -92,4 +104,16 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
   rownames(res) <- NULL
   attr(res, "cred_level") <- cred_level
   res
+}
+
+# Fit genes in parallel R sessions. The model is compiled (or found in the
+# cache) once before the sessions start, so that they never compile it at the
+# same time; every gene keeps its seed, so the results equal the sequential run.
+.denmark_parallel_lapply <- function(genes, one_gene, workers, dots) {
+  if (!requireNamespace("future.apply", quietly = TRUE))
+    stop("`workers > 1` needs the 'future.apply' package: install.packages('future.apply')")
+  denmark_model(stan_file = dots$stan_file, vararea = !is.null(dots$boundary))
+  old_plan <- future::plan(future::multisession, workers = min(workers, length(genes)))
+  on.exit(future::plan(old_plan), add = TRUE)
+  future.apply::future_lapply(genes, one_gene, future.seed = TRUE)
 }

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation and FAQ
+    url: https://stagill.github.io/DenMark/articles/faq.html
+    about: Installation, input data, settings, convergence and how to read the results.
+  - name: Discussions
+    url: https://github.com/StaGill/DenMark/discussions
+    about: Open questions and ideas about density-correlated genes and DenMark.

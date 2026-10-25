@@ -11,6 +11,7 @@ denmark_scan(
   cred_level = 0.95,
   quiet = TRUE,
   verbose = TRUE,
+  workers = 1,
   ...
 )
 }
@@ -29,6 +30,14 @@ genes already present are loaded instead of refitted (resumable scans).}
 
 \item{verbose}{Report one message per gene with rho and its credible
 interval.}
+
+\item{workers}{Number of genes fitted at the same time, each in its own R
+session (needs the future.apply package and an installed DenMark). Every
+gene keeps its seed, so the results equal those of the sequential scan.
+Each fit also runs its chains in parallel (\code{parallel_chains}, by default
+\code{chains}), so a scan uses up to \code{workers * chains} cores. For a cluster,
+\code{system.file("slurm", package = "DenMark")} holds a template that fits
+one gene per SLURM array task.}
 
 \item{...}{Further arguments passed to \code{\link[=DenMark]{DenMark()}} (\code{grid_size}, \code{basis},
 ...).}

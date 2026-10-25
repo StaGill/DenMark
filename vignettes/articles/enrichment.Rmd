@@ -1,0 +1,46 @@
+---
+title: "Gene set enrichment of density-correlated genes"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+The DenMark paper reads the density-correlated genes of an analysis as programs, with a rank-based gene set enrichment analysis (GSEA) of Gene Ontology terms: all scanned genes are ranked by the posterior mean of ρ, so that a gene set enriched at the top is activated among the genes that rise with density, and a set enriched at the bottom is suppressed among the genes that fall. The recipe below uses the settings of the paper's analyses on the output of a gene scan (`scan`, from `denmark_scan()` or `scan_genes()`).
+
+### Rank the genes and run GSEA {.tabset}
+
+#### R
+
+```{r}
+# BiocManager::install(c("clusterProfiler", "org.Hs.eg.db"))   # once
+library(clusterProfiler)
+library(org.Hs.eg.db)    # org.Mm.eg.db for mouse genes
+
+ranks <- sort(setNames(scan$rho_mean, scan$gene), decreasing = TRUE)
+set.seed(2026)
+gse <- gseGO(ranks, OrgDb = org.Hs.eg.db, keyType = "SYMBOL", ont = "ALL",
+             minGSSize = 5, maxGSSize = 300, pvalueCutoff = 0.05,
+             pAdjustMethod = "BH", eps = 0)
+head(as.data.frame(gse)[, c("ONTOLOGY", "Description", "setSize", "NES", "p.adjust")])
+```
+
+#### Python
+
+```python
+# pip install gseapy   (the gene sets are downloaded from Enrichr)
+import gseapy as gp
+
+ranks = scan.set_index("gene")["rho_mean"].sort_values(ascending=False)
+res = gp.prerank(rnk=ranks, gene_sets="GO_Biological_Process_2025", min_size=5,
+                 max_size=300, permutation_num=1000, seed=2026, outdir=None).res2d
+print(res.sort_values("FDR q-val").head()[["Term", "NES", "FDR q-val"]])
+# mouse genes: gene_sets=gp.get_library("GO_Biological_Process_2025", organism="Mouse")
+```
+
+## Reading the result
+
+- Rank all scanned genes, not only the density-correlated ones: GSEA uses the whole ranking.
+- With a targeted panel, only gene sets with at least five genes on the panel can be tested, and the enrichment is relative to the panel rather than to the genome.
+- The leading genes of an enriched set are density-correlated genes like any other: read them against gauge genes of the neighboring cell types, as described in [Reading density-correlated genes](reading-dcgs.html), before calling a program a change within the focal cells.
+- The R and Python recipes use different gene set libraries (the Gene Ontology annotation of `org.Hs.eg.db` across all three ontologies, against the Enrichr release of the biological process ontology) and different permutation schemes, so their results differ in detail. The paper's analyses used the R recipe.

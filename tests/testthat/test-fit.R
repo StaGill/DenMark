@@ -27,6 +27,8 @@ test_that("arguments of the removed models fail before any fitting", {
   expect_error(DenMark(cells, gene = "g", model = "M2"), "`model` was removed", fixed = TRUE)
   expect_error(DenMark(cells, gene = "g", waic = TRUE), "`waic` was removed", fixed = TRUE)
   expect_error(denmark_scan(cells, fit_simple = TRUE), "`fit_simple` was removed", fixed = TRUE)
+  expect_error(denmark_scan(cells, workers = 0), "positive whole number")
+  expect_error(denmark_scan(cells, workers = 1.5), "positive whole number")
 })
 
 test_that("a custom Stan file without per-grid areas is refused with a boundary", {
@@ -129,4 +131,21 @@ test_that("denmark_scan fits, classifies and resumes a two-gene scan", {
 
   again <- run()
   expect_equal(again$rho_mean, res$rho_mean)
+})
+
+test_that("a parallel scan gives the same results as the sequential scan", {
+  skip_if_no_cmdstan()
+  skip_if_not_installed("sf")
+  skip_if_not_installed("future.apply")
+  skip_if(length(find.package("DenMark", lib.loc = .libPaths(), quiet = TRUE)) == 0,
+          "parallel workers need an installed DenMark")
+  tumor <- toy_tumor()
+  tissue <- toy_tissue()
+  run <- function(workers) {
+    denmark_scan(tumor, genes = c("geneA", "geneC"), boundary = tissue, workers = workers,
+                 grid_size = 8, basis = 5, chains = 1, iter_warmup = 150,
+                 iter_sampling = 150, seed = 2024, verbose = FALSE)
+  }
+  cols <- c("gene", "rho_mean", "rho_lower", "rho_upper", "max_rhat", "divergences", "class")
+  expect_equal(run(2)[cols], run(1)[cols])
 })

@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in DenMark does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for reporting! A small example that reproduces the problem, ideally on the toy
+        data (`denmark_toy_data()` in R, `denmark.datasets.load_toy()` in Python), makes it much
+        faster to fix.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - R package (DenMark)
+        - Python package (denmark)
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code that reproduces it
+      render: text
+  - type: textarea
+    id: session
+    attributes:
+      label: Session information
+      description: >-
+        In R, the output of `sessionInfo()` and `cmdstanr::cmdstan_version()`; in Python, the
+        output of `pip freeze` and `cmdstanpy.cmdstan_version()`.
+      render: text
+    validations:
+      required: true

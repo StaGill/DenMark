@@ -223,12 +223,20 @@ scan[, c("gene", "rho_mean", "rho_lower", "rho_upper", "class", "max_rhat")]
 plot_denmark_scan(scan)
 ```
 
+For a full panel, `workers = 4` fits four genes at a time, each in its own R
+session, with the same results as the sequential scan; every fit also runs its
+chains in parallel, so plan for `workers` times `chains` cores. On a cluster,
+the template in `system.file("slurm", package = "DenMark")` fits one gene per
+SLURM array task and then collects the results with `denmark_scan()`.
+
 ## Checking the estimates against the truth
 
 With true values of 0.6, 0 and -0.6, the expected calls are PCG for geneA,
 not DCG for geneB and NCG for geneC. The table compares each posterior mean
 and 95% credible interval with the true $\rho$; `covered` shows whether the
-interval contains it.
+interval contains it. [Reading density-correlated genes](https://stagill.github.io/DenMark/articles/reading-dcgs.html)
+explains what a call can and cannot tell you, and how to tell a change within the
+focal cells from a signal of their neighborhood.
 
 ```{r check, eval = cmdstan_ok && sf_ok}
 check <- data.frame(gene = scan$gene, truth = truth[scan$gene],
@@ -250,6 +258,8 @@ stopped.
 
 ```{r own-data, eval = FALSE}
 cells <- read.csv("cells.csv")   # all cells: x, y, celltype and gene counts
+# or from a Seurat object (Xenium, MERSCOPE or CosMx) with cell types in its metadata:
+# cells <- denmark_from_seurat(obj, celltype = "celltype")
 tissue <- denmark_alpha_shape(cells$x, cells$y)
 focal <- subset(cells, celltype == "Tumor", select = -celltype)
 genes <- denmark_filter_genes(focal[, setdiff(names(focal), c("x", "y"))])
@@ -259,6 +269,8 @@ dcg <- denmark_scan(focal[, c("x", "y", genes)], boundary = tissue,
                     grid_size = 15, basis = 25, save_dir = "denmark_scan")
 ```
 
-`denmark_check_hsgp()` compares the posterior length-scales with a rule of
-thumb for the number of basis functions and the boundary factor, and
-`denmark_save()` keeps a fit for later sessions.
+`denmark_annotate(obj, dcg)` writes the estimates, their intervals and the
+calls back into the Seurat object's gene metadata. `denmark_check_hsgp()`
+compares the posterior length-scales with a rule of thumb for the number of
+basis functions and the boundary factor, and `denmark_save()` keeps a fit for
+later sessions.

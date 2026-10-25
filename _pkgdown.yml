@@ -31,6 +31,7 @@ reference:
       and expression, and the Stan data with the inputs of the Hilbert space
       Gaussian process (HSGP).
     contents:
+      - denmark_from_seurat
       - denmark_filter_genes
       - denmark_alpha_shape
       - buildgridpp
@@ -63,6 +64,7 @@ reference:
       genes from the credible interval of rho.
     contents:
       - denmark_scan
+      - denmark_annotate
   - title: Visualization
     contents:
       - plot_denmark_boundary
@@ -96,6 +98,9 @@ articles:
   - title: Articles
     navbar: ~
     contents:
+      - articles/reading-dcgs
+      - articles/enrichment
+      - articles/faq
       - articles/toy-data
       - articles/case-studies
       - articles/citation

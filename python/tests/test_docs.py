@@ -1,6 +1,7 @@
-"""Run the Python examples of the README files and of the Get started in Python page as
-written, on the bundled toy data."""
+"""Run the Python examples of the README files, of the Get started in Python page and of the
+Colab notebook as written, on the bundled toy data."""
 
+import json
 import re
 import sys
 
@@ -9,7 +10,10 @@ import pytest
 from .conftest import PKG_ROOT, REPO_ROOT, cmdstan_available
 
 PAGES = {"README.md": REPO_ROOT / "README.md", "python/README.md": PKG_ROOT / "README.md",
-         "Get started in Python": REPO_ROOT / "vignettes" / "articles" / "python.Rmd"}
+         "Get started in Python": REPO_ROOT / "vignettes" / "articles" / "python.Rmd",
+         "Colab notebook": PKG_ROOT / "notebooks" / "denmark_colab.ipynb"}
+# Notebook cells that install software are not run here.
+NOTEBOOK_SETUP = ("%pip", "install_cmdstan(")
 # Examples that read the reader's own files cannot run here.
 NEEDS_FILES = ('read_csv("',)
 # Examples that fit a model need CmdStan, and the examples after them use the fits.
@@ -19,8 +23,12 @@ NEEDS_CMDSTAN = ("DenMark(", "denmark(", "DenMarkmain(", "scan_genes(", "compile
 def _blocks(path):
     """The ```python blocks of a page that can run here, in order."""
     text = path.read_text(encoding="utf-8")
-    blocks = [b for b in re.findall(r"```python[ \t]*\n(.*?)```", text, flags=re.S)
-              if not any(s in b for s in NEEDS_FILES)]
+    if path.suffix == ".ipynb":
+        cells = ["".join(c["source"]) for c in json.loads(text)["cells"] if c["cell_type"] == "code"]
+        blocks = [c for c in cells if not any(s in c for s in NOTEBOOK_SETUP)]
+    else:
+        blocks = re.findall(r"```python[ \t]*\n(.*?)```", text, flags=re.S)
+    blocks = [b for b in blocks if not any(s in b for s in NEEDS_FILES)]
     if not cmdstan_available():
         for k, block in enumerate(blocks):
             if any(s in block for s in NEEDS_CMDSTAN):

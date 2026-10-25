@@ -1,0 +1,39 @@
+---
+title: "Frequently asked questions"
+---
+
+## Installation
+
+**Installing CmdStan fails.** CmdStan compiles the Stan models and needs a C++ toolchain: Rtools on Windows, the Xcode command line tools on macOS. In R, `cmdstanr::check_cmdstan_toolchain(fix = TRUE)` finds and repairs the usual problems before `cmdstanr::install_cmdstan()`. In Python on Windows, `python -m cmdstanpy.install_cmdstan --compiler` installs the toolchain together with CmdStan; with conda, `conda install -c conda-forge cmdstanpy` brings a prebuilt CmdStan.
+
+**Do I need sf or shapely?** Only for the tissue boundary (`denmark_alpha_shape()` in R, `alpha_shape()` in Python). DenMark installs and fits models without them, over the bounding box of the cells.
+
+## Input data
+
+**Which counts?** Raw counts, one column per gene and one row per cell. Normalized or log-transformed values break the Poisson model of the summed expression. From a Seurat object, `denmark_from_seurat()` reads the counts layer; from an AnnData object, `from_anndata(adata, celltype_key, layer="counts")` reads the layer you name and warns when the values are not whole numbers.
+
+**Which cells define the tissue boundary?** All cells of the section. The boundary marks where any cell could have been observed; the model then uses the cells of one population. A boundary drawn from the analyzed cells alone would follow that population's own pattern and hide the regions where it is sparse.
+
+**In what units should the coordinates be?** Any unit, as long as the cells and the tissue boundary share it. Length-scales and practical ranges are reported in the same units, so micrometers give the most readable ranges; convert pixel coordinates first. The default alpha of the boundary, three times the median Delaunay edge length, adapts to the units.
+
+**Can I analyze part of a section?** Yes: pass `bbox = c(xmin, xmax, ymin, ymax)`, or subset the cells to a region of interest. With a tissue `boundary`, also pass the region as `bbox`, since the grid otherwise spans the whole boundary. The size of the region sets the spatial scale of the analysis.
+
+**Can I use Visium or Visium HD data?** Version 0.9.0 models single-cell resolution data (Xenium, MERFISH, CosMx) with the cell count as the expression offset. Version 1.0.0 will add the total-transcript offset for sequencing-based platforms and the pooling of Visium spots into seven-spot super-grids, as used in the revised manuscript.
+
+## Settings
+
+**How fine should the grid be?** As fine as computation allows: the fitted density and expression approach their cell-level values as the grid becomes finer (Figure 2F of the manuscript), and the analyses in the manuscript use grids of 30 x 30 to 50 x 50. The function default and the examples on this site use a 10 x 10 grid only to run quickly; set `grid_size` for an analysis.
+
+**How many basis functions?** The default is 25 per axis. After a fit, `denmark_check_hsgp()` (Python: `fit.check_hsgp()`) compares the fitted length-scales with what the number of basis functions and the boundary factor can represent, and prints a message when they fall short, with the boundary factor needed or the smallest length-scale the basis can represent.
+
+**The fit reports R-hat above 1.01 or divergent transitions.** Run the default sampler settings (four chains of 1,000 warm-up and 1,000 sampling iterations) rather than the short settings of the examples, raise `adapt_delta` from 0.95 to 0.99, and check the basis with `denmark_check_hsgp()`. The column `converged` of a gene scan flags the genes that need this.
+
+**How long does a scan take?** With the short settings of the examples, a fit of the toy data on a 10 x 10 grid takes one to three minutes per gene on a laptop; the default settings, and whole sections on fine grids, take much longer. `denmark_scan(workers = )` and `scan_genes(n_jobs = )` fit several genes at a time with the same results, and `system.file("slurm", package = "DenMark")` holds a template that runs one gene per job on a SLURM cluster.
+
+## Results
+
+**What does rho mean?** The correlation between the latent field of cell density and the latent field of expression per cell: positive when a gene's expression per cell is higher where the population is crowded, negative when it is lower. It describes co-variation between grid cells, over distances up to the fields' practical ranges, not between individual cells, and not a mechanism.
+
+**A gene is "not DCG". Is its expression unrelated to density?** Not necessarily. The 95% credible interval of rho includes zero, so the data do not settle the sign at that level. A narrow interval around zero says the correlation is small; a wide one says the data say little either way. [Reading density-correlated genes](reading-dcgs.html) covers this in more depth.
+
+**Why do R and Python give slightly different numbers?** They build the same Stan data and fit the same Stan models, so their estimates agree within Monte Carlo error. Their simulators differ, so compare the two languages on the same data file, as the toy data do.

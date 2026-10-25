@@ -75,3 +75,13 @@ def test_scan_two_genes(tumor, tissue):
     assert np.isfinite(scan[["rho_mean", "rho_lower", "rho_upper"]].to_numpy(float)).all()
     assert (scan["rho_lower"] <= scan["rho_upper"]).all()
     assert set(scan["class"]) <= {"PCG", "NCG", "not DCG"}
+
+
+def test_parallel_scan_equals_sequential_fits(tumor, tissue):
+    kw = dict(genes=["geneA", "geneC"], boundary=tissue, grid_size=8, basis=5, chains=1,
+              iter_warmup=150, iter_sampling=150, seed=2024, verbose=False)
+    cols = ["gene", "rho_mean", "rho_lower", "rho_upper", "max_rhat", "divergences", "class"]
+    seq = dm.scan_genes(tumor, **kw)
+    par = dm.scan_genes(tumor, n_jobs=2, **kw)
+    assert par[cols].equals(seq[cols])
+

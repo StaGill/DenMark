@@ -1,0 +1,66 @@
+---
+title: "Reading density-correlated genes"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+DenMark estimates, for each gene, the correlation ρ between the local density of one cell population and the gene's expression per cell, with a 95% credible interval. A gene is a positively (PCG) or negatively (NCG) density-correlated gene when the interval lies above or below zero; the manuscript names these interval calls positive DCG and negative DCG, and an interval that includes zero uninformative, while its PCG and NCG mark only the sign of the posterior mean. This page explains what such a call can and cannot tell you, following the Discussion of the revised DenMark manuscript (Xu, Schmidt and Zhang, under review at Cell Reports Methods).
+
+## What ρ measures
+
+ρ is the correlation between two smooth latent fields over the tissue: the log density of the focal population and the gene's log expression per cell. A positive ρ means that the cells of the population carry more transcripts of the gene where the population is crowded and fewer where it is sparse; a negative ρ means the reverse. ρ describes co-variation between grid cells, over distances up to the fields' practical ranges (`denmark_decay()`), not between individual cells.
+
+The same fit splits the log expression into a part shared with density, a21 w1, and a gene-specific part, a22 w2 (`denmark_fields()`). The gene-specific part is a map of expression adjusted for density, which, the manuscript suggests, could serve as a density-adjusted signal, for example when looking for spatially variable genes that density does not explain.
+
+## Where the information comes from
+
+DenMark learns about ρ from the spatial variation in the density of the focal population. Where the density hardly varies, the posterior of ρ moves toward its prior and the interval is wide. Where the population is sparse, the interval also widens, while keeping its coverage in the manuscript's simulations. A rare or evenly spread population therefore gives wide intervals rather than spurious density-correlated genes, and "not DCG" means that the data did not settle the sign of ρ, not that ρ is zero.
+
+## One population at a time
+
+Across a whole section, fit one annotated cell type at a time: pooling cell types that differ in their baseline density makes density partly a map of cell type, and ρ then mixes the two. Within a region of interest, such as a niche, the population is every cell in the region, and the result describes the microenvironment as a whole. In both cases, compute the tissue boundary from all cells of the section; for a region of interest, also pass the region as `bbox`, since the grid otherwise spans the whole boundary.
+
+## The focal cells or their neighborhood?
+
+The transcripts assigned to the focal cells include some from their neighbors. Where the neighborhood changes with density, those transcripts acquire a density correlation of their own. The manuscript therefore reads each density-correlated gene against a gauge: genes expressed by a neighboring cell type but not by the focal type, in the way that genes absent from a cell type are used to estimate ambient RNA in single-cell data.
+
+- When the gauge genes move with density as strongly as a density-correlated gene that the neighboring type also expresses, the correlation describes the tissue around the focal cells. In the manuscript, the synaptic programs in astrocytes and the lymphocyte-activation programs in CD8+ T cells read this way.
+- When the gauge genes of the neighboring types that also express the gene do not move with it, the correlation can be read as a change within the focal cells. Mertk in astrocytes reads this way: microglia express Mertk, but microglial genes do not fall with astrocyte density, and neurons, whose genes do fall, express little Mertk.
+
+The rule guides the reading of a gene; it is not a test. The two contributions can coexist in one gene, and a neighboring type without marker genes on the panel leaves no gauge.
+
+In practice, choose as gauge genes markers that the neighboring type expresses and the focal type does not, and that carry enough counts in the focal cells for a narrow interval: a gauge whose interval is wide cannot show that it does not move. Scan them together with the candidates, on the same cells and with the same settings:
+
+### Scan candidates and gauge genes {.tabset}
+
+#### R
+
+```{r}
+# focal: the cells of the focal type; tissue: the boundary of all cells;
+# candidates: density-correlated genes to read; gauge: markers of a neighboring type
+genes <- c(candidates, gauge)
+scan <- denmark_scan(focal[, c("x", "y", genes)], genes = genes, boundary = tissue,
+                     grid_size = 30, workers = 4)
+scan[, c("gene", "rho_mean", "rho_lower", "rho_upper", "class")]
+```
+
+#### Python
+
+```python
+# focal: the cells of the focal type; tissue: the boundary of all cells;
+# candidates: density-correlated genes to read; gauge: markers of a neighboring type
+genes = candidates + gauge
+scan = dm.scan_genes(focal[["x", "y"] + genes], genes=genes, boundary=tissue,
+                     grid_size=30, n_jobs=4)
+print(scan[["gene", "rho_mean", "rho_lower", "rho_upper", "class"]])
+```
+
+## What DenMark does not tell you
+
+DenMark finds genes whose expression tracks local density; it does not resolve the mechanism, which may involve interactions among the cell types that share the tissue. The manuscript suggests that, for a gene that a coexisting population does not express, including that population's density as a covariate would test whether one population responds to crowding by another, and it leaves a joint model of coexisting cell types to future work; the package implements neither.
+
+Sections are fitted separately and compared, as the manuscript does for nine mouse brain sections; a hierarchical model that shares information across sections would increase the power to identify density-correlated genes. With the total transcript count as the offset, which version 1.0.0 will add for Visium HD and Visium, ρ measures how a gene's share of the transcriptome covaries with density.
+
+To read the density-correlated genes of an analysis as programs, see [Gene set enrichment of density-correlated genes](enrichment.html).

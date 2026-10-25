@@ -8,6 +8,7 @@
   <a href="https://github.com/StaGill/DenMark/actions/workflows/python-tests.yml"><img src="https://github.com/StaGill/DenMark/actions/workflows/python-tests.yml/badge.svg?branch=main" alt="python-tests"></a>
   <a href="https://stagill.github.io/DenMark/"><img src="https://github.com/StaGill/DenMark/actions/workflows/pkgdown.yaml/badge.svg?branch=main" alt="docs"></a>
   <a href="https://stagill.r-universe.dev/DenMark"><img src="https://stagill.r-universe.dev/badges/DenMark" alt="R-universe"></a>
+  <a href="https://colab.research.google.com/github/StaGill/DenMark/blob/main/python/notebooks/denmark_colab.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in Colab"></a>
   <a href="https://github.com/StaGill/DenMark/releases"><img src="https://img.shields.io/github/v/release/StaGill/DenMark" alt="release"></a>
   <a href="https://github.com/StaGill/DenMark/blob/main/LICENSE"><img src="https://img.shields.io/github/license/StaGill/DenMark" alt="license"></a>
 </p>
@@ -18,7 +19,7 @@
 Mingchi Xu, Alexandra M. Schmidt\*, and Qihuang Zhang\*\
 Department of Epidemiology, Biostatistics and Occupational Health, McGill University (\*corresponding authors: <alexandra.schmidt@mcgill.ca>, <qihuang.zhang@mcgill.ca>)
 
-**Documentation:** <https://stagill.github.io/DenMark/>
+**Documentation:** <https://stagill.github.io/DenMark/> (questions: [FAQ](https://stagill.github.io/DenMark/articles/faq.html))
 
 ![Overview of the DenMark workflow](man/figures/denmark-workflow.png)
 
@@ -140,6 +141,7 @@ With your own data, start from one row per cell of the section, with coordinates
 
 ```r
 cells <- read.csv("cells.csv")   # columns x, y, celltype and one count column per gene
+# or from a Seurat object: cells <- denmark_from_seurat(obj, celltype = "celltype")
 tissue <- denmark_alpha_shape(cells$x, cells$y)
 focal <- subset(cells, celltype == "Tumor", select = -celltype)
 genes <- denmark_filter_genes(focal[, setdiff(names(focal), c("x", "y"))])
@@ -198,6 +200,8 @@ fit <- denmark_load(path)
 
 ## Use DenMark from Python
 
+To try DenMark without installing anything, run the toy-data workflow in Google Colab: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/StaGill/DenMark/blob/main/python/notebooks/denmark_colab.ipynb)
+
 ### Installation
 
 ```bash
@@ -248,6 +252,7 @@ import pandas as pd
 import denmark as dm
 
 cells = pd.read_csv("cells.csv")   # columns x, y, celltype and one count column per gene
+# or from an AnnData object: cells = dm.from_anndata(adata, celltype_key="celltype")
 tissue = dm.alpha_shape(cells["x"], cells["y"])
 focal = cells[cells["celltype"] == "Tumor"].drop(columns="celltype")
 genes = dm.filter_genes(focal.drop(columns=["x", "y"]))

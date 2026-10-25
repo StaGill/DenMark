@@ -8,6 +8,7 @@ The R package `DenMark` and the Python package `denmark` build the same Stan dat
 
 | Task | R | Python |
 |---|---|---|
+| Cells from an analysis object | `denmark_from_seurat(object, celltype)` (Seurat) | `from_anndata(adata, celltype_key)` (AnnData, SpatialData tables) |
 | Gene filter | `denmark_filter_genes(expr)` | `filter_genes(expr)` |
 | Tissue boundary | `denmark_alpha_shape(x, y)` | `alpha_shape(x, y)` |
 | Grid | `buildgridpp(grid_size, dataset, gene)` | `buildgridpp(grid_size, dataset, gene)` |
@@ -22,7 +23,8 @@ The R package `DenMark` and the Python package `denmark` build the same Stan dat
 | Latent fields | `denmark_fields(fit)` | `fit.fields()` |
 | Correlation decay | `denmark_decay(fit)` | `fit.decay()` |
 | HSGP check | `denmark_check_hsgp(fit)` | `fit.check_hsgp()` |
-| Gene scan | `denmark_scan()` | `scan_genes()` |
+| Gene scan | `denmark_scan()`, `workers =` for parallel genes | `scan_genes()`, `n_jobs=` for parallel genes |
+| Results into the analysis object | `denmark_annotate(object, scan)` | `annotate(adata, scan)` |
 | Save and reload | `denmark_save()`, `denmark_load()` (RDS) | `save_result()`, `load_result()` (pickle) |
 | Simulation | `denmark_simulate()` | `simulate()` |
 | Toy data | `denmark_toy_data()` | `denmark.datasets.load_toy()` |

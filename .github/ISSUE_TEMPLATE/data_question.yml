@@ -1,0 +1,36 @@
+name: Question about my data or results
+description: Help with preparing data, choosing settings or reading the output.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Please check the [FAQ](https://stagill.github.io/DenMark/articles/faq.html) first; it
+        covers installation, input data, grid and basis settings, convergence and how to read
+        the results.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Xenium
+        - MERFISH / MERSCOPE
+        - CosMx
+        - Visium HD
+        - Visium
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: The tissue, the cell type analyzed, and the question you want DenMark to answer.
+    validations:
+      required: true
+  - type: textarea
+    id: run
+    attributes:
+      label: What did you run, and what did you get?
+      description: The calls with their settings (grid size, basis, sampler settings) and the output or figure.
+      render: text
