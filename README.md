@@ -8,7 +8,7 @@
   <a href="https://github.com/StaGill/DenMark/actions/workflows/python-tests.yml"><img src="https://github.com/StaGill/DenMark/actions/workflows/python-tests.yml/badge.svg?branch=main" alt="python-tests"></a>
   <a href="https://stagill.github.io/DenMark/"><img src="https://github.com/StaGill/DenMark/actions/workflows/pkgdown.yaml/badge.svg?branch=main" alt="docs"></a>
   <a href="https://github.com/StaGill/DenMark/releases"><img src="https://img.shields.io/github/v/release/StaGill/DenMark" alt="release"></a>
-  <a href="https://github.com/StaGill/DenMark/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/StaGill/DenMark" alt="license"></a>
+  <a href="https://github.com/StaGill/DenMark/blob/main/LICENSE"><img src="https://img.shields.io/github/license/StaGill/DenMark" alt="license"></a>
 </p>
 <!-- badges: end -->
 
@@ -40,7 +40,7 @@ This repository contains the reference R and Python implementations accompanying
 - `data-raw/make_toy_data.R`: rebuilds the toy data.
 - `Tutorial_DenMark.Rmd` / `Tutorial_DenMark.pdf`: a worked tutorial on a simulated tissue section (the simulation behind the toy data) and the Xenium breast cancer section, with a Python section. It sources the script version of the R functions (`DenMark/DenMark-functions.R`, which the packages replace; it remains in the git history) and also fits the simplified model and compares models by WAIC, which the packages no longer include. With the packages, read the PDF and run the [Get started](https://stagill.github.io/DenMark/articles/DenMark.html) vignette, which follows the same tissue-boundary workflow.
 - `CITATION.cff`: citation metadata.
-- `LICENSE.md`: MIT license.
+- `LICENSE`: MIT license.
 
 ---
 
@@ -305,4 +305,4 @@ The DenMark manuscript is under review at *Cell Reports Methods*. If you use Den
 
 ## License
 
-MIT (see `LICENSE.md`).
+MIT (see `LICENSE`).
