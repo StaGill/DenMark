@@ -44,41 +44,6 @@ This repository contains the reference R and Python implementations accompanying
 
 ---
 
-## Installation
-
-### R
-
-DenMark fits its models with Stan through [cmdstanr](https://mc-stan.org/cmdstanr/), which is distributed from the Stan R-universe (<https://stan-dev.r-universe.dev>) rather than CRAN. From a terminal:
-
-```bash
-Rscript -e 'install.packages(c("remotes", "cmdstanr", "sf"), repos = c("https://stan-dev.r-universe.dev", "https://cloud.r-project.org"))'
-Rscript -e 'remotes::install_github("StaGill/DenMark")'
-Rscript -e 'cmdstanr::install_cmdstan()'
-```
-
-The same three calls can be run in an R session. `install_cmdstan()` downloads and builds CmdStan once per machine and needs a C++ toolchain (Rtools on Windows, the Xcode command line tools on macOS). The sf package is needed only for the tissue boundary (`denmark_alpha_shape()`); DenMark installs and fits models without it.
-
-```r
-library(DenMark)
-packageVersion("DenMark")
-```
-
-### Python
-
-```bash
-pip install "denmark[boundary,plot] @ git+https://github.com/StaGill/DenMark#subdirectory=python"
-python -m cmdstanpy.install_cmdstan
-```
-
-The package needs Python 3.9 or later. Both extras are optional: `boundary` adds shapely, which the tissue boundary (`alpha_shape()`) needs, and `plot` adds matplotlib for the figures. `pip install "git+https://github.com/StaGill/DenMark#subdirectory=python"` installs the package without them, and `pip install shapely` adds the boundary to an existing installation. The importable name is `denmark`:
-
-```python
-import denmark as dm
-print(dm.__version__)
-```
-
----
-
 ## API at a glance
 
 The steps of the STAR Methods map to the following functions. Python mirrors R function by function; a Python fit is a `DenMarkResult` whose methods take the place of the R post-processing functions.
@@ -105,6 +70,42 @@ The revised manuscript also uses the total transcript count as the expression of
 
 A simulated tissue section with a known answer ships with both packages for examples and tests: 7,449 cells in an irregular, lobed section inside the window [0, 6] x [0, 4], with coordinates `x`, `y`, the cell type `celltype` and counts for three genes. The 3,449 `Tumor` cells are the population analyzed; their true density-expression correlations are ρ = 0.6 (`geneA`), 0 (`geneB`) and -0.6 (`geneC`). The 4,000 `Other` cells only delineate the tissue.
 
+`data-raw/make_toy_data.R` rebuilds it with `denmark_simulate()`, the simulation of `Tutorial_DenMark.Rmd`; the [Toy data](https://stagill.github.io/DenMark/articles/toy-data.html) article describes it.
+
+---
+
+## Choose your language
+
+DenMark comes as an R package and a Python package that build the same Stan data and fit the same Stan models; the table above maps their function names. The rest of this page has one self-contained part per language, so read the one you use:
+
+- **[DenMark in R](#use-denmark-from-r)**: installation, the toy data, a quick start and a step-by-step analysis with the R package `DenMark`.
+- **[DenMark in Python](#use-denmark-from-python)**: the same with the Python package `denmark`.
+
+The documentation site has a Get started page for each: [in R](https://stagill.github.io/DenMark/articles/DenMark.html) and [in Python](https://stagill.github.io/DenMark/articles/python.html).
+
+---
+
+## Use DenMark from R
+
+### Installation
+
+DenMark fits its models with Stan through [cmdstanr](https://mc-stan.org/cmdstanr/), which is distributed from the Stan R-universe (<https://stan-dev.r-universe.dev>) rather than CRAN. From a terminal:
+
+```bash
+Rscript -e 'install.packages(c("remotes", "cmdstanr", "sf"), repos = c("https://stan-dev.r-universe.dev", "https://cloud.r-project.org"))'
+Rscript -e 'remotes::install_github("StaGill/DenMark")'
+Rscript -e 'cmdstanr::install_cmdstan()'
+```
+
+The same three calls can be run in an R session. `install_cmdstan()` downloads and builds CmdStan once per machine and needs a C++ toolchain (Rtools on Windows, the Xcode command line tools on macOS). The sf package is needed only for the tissue boundary (`denmark_alpha_shape()`); DenMark installs and fits models without it.
+
+```r
+library(DenMark)
+packageVersion("DenMark")
+```
+
+### Toy data
+
 ```r
 library(DenMark)
 toy <- denmark_toy_data()
@@ -112,18 +113,7 @@ head(toy)
 table(toy$celltype)
 ```
 
-```python
-import denmark as dm
-toy = dm.datasets.load_toy()
-print(toy.head())
-print(toy["celltype"].value_counts())
-```
-
-`data-raw/make_toy_data.R` rebuilds it with `denmark_simulate()`, the simulation of `Tutorial_DenMark.Rmd`; the [Toy data](https://stagill.github.io/DenMark/articles/toy-data.html) article describes it.
-
----
-
-## Quick start
+### Quick start
 
 One gene, with short chains on a coarse grid. Real analyses use finer grids (30 x 30 to 50 x 50 in the manuscript) and the default sampler settings (4 chains, 1,000 warm-up and 1,000 sampling iterations).
 
@@ -139,18 +129,6 @@ fit                    # rho with its 95% credible interval and sampler diagnost
 denmark_summary(fit)   # posterior summary of the key parameters; rho is Astar[2,1]
 ```
 
-```python
-import denmark as dm
-
-toy = dm.datasets.load_toy()
-tissue = dm.alpha_shape(toy["x"], toy["y"])   # tissue boundary from all cells
-tumor = toy[toy["celltype"] == "Tumor"].drop(columns="celltype")
-res = dm.DenMark(tumor, gene="geneA", boundary=tissue, grid_size=10, basis=10,
-                 chains=2, iter_warmup=500, iter_sampling=500, seed=2024)
-print(res)             # rho with its 95% credible interval and sampler diagnostics
-print(res.summary())   # posterior summary of the key parameters; rho is Astar[2,1]
-```
-
 The tissue boundary is computed from all cells of the section, not only the Tumor cells: the region where a Tumor cell could have been observed is the whole tissue, and empty grids outside it would otherwise read as regions of low density. `DenMark()` grids the Tumor cells, drops the grids outside the tissue, builds the Stan data, compiles the model and samples. Grids that straddle the boundary enter with their area inside the tissue, through the variable-area model `DenMark-vararea.stan`; without `boundary`, the bounding box of the cells is gridded with a common grid area. The first fit compiles the Stan model; later fits reuse it.
 
 ### Step by step
@@ -163,17 +141,6 @@ tissue <- denmark_alpha_shape(cells$x, cells$y)
 focal <- subset(cells, celltype == "Tumor", select = -celltype)
 genes <- denmark_filter_genes(focal[, setdiff(names(focal), c("x", "y"))])
 fit <- DenMark(focal, gene = genes[1], boundary = tissue, grid_size = 30)
-```
-
-```python
-import pandas as pd
-import denmark as dm
-
-cells = pd.read_csv("cells.csv")   # columns x, y, celltype and one count column per gene
-tissue = dm.alpha_shape(cells["x"], cells["y"])
-focal = cells[cells["celltype"] == "Tumor"].drop(columns="celltype")
-genes = dm.filter_genes(focal.drop(columns=["x", "y"]))
-res = dm.DenMark(focal, gene=genes[0], boundary=tissue, grid_size=30)
 ```
 
 The functions behind `DenMark()` can also be run one at a time. On the toy data:
@@ -223,6 +190,68 @@ path <- file.path(tempdir(), "denmark_geneA.rds")
 denmark_save(fit, path)
 fit <- denmark_load(path)
 ```
+
+---
+
+## Use DenMark from Python
+
+### Installation
+
+```bash
+pip install "denmark[boundary,plot] @ git+https://github.com/StaGill/DenMark#subdirectory=python"
+python -m cmdstanpy.install_cmdstan
+```
+
+The package needs Python 3.9 or later. Both extras are optional: `boundary` adds shapely, which the tissue boundary (`alpha_shape()`) needs, and `plot` adds matplotlib for the figures. `pip install "git+https://github.com/StaGill/DenMark#subdirectory=python"` installs the package without them, and `pip install shapely` adds the boundary to an existing installation. The importable name is `denmark`:
+
+```python
+import denmark as dm
+print(dm.__version__)
+```
+
+### Toy data
+
+```python
+import denmark as dm
+toy = dm.datasets.load_toy()
+print(toy.head())
+print(toy["celltype"].value_counts())
+```
+
+### Quick start
+
+One gene, with short chains on a coarse grid. Real analyses use finer grids (30 x 30 to 50 x 50 in the manuscript) and the default sampler settings (4 chains, 1,000 warm-up and 1,000 sampling iterations).
+
+```python
+import denmark as dm
+
+toy = dm.datasets.load_toy()
+tissue = dm.alpha_shape(toy["x"], toy["y"])   # tissue boundary from all cells
+tumor = toy[toy["celltype"] == "Tumor"].drop(columns="celltype")
+res = dm.DenMark(tumor, gene="geneA", boundary=tissue, grid_size=10, basis=10,
+                 chains=2, iter_warmup=500, iter_sampling=500, seed=2024)
+print(res)             # rho with its 95% credible interval and sampler diagnostics
+print(res.summary())   # posterior summary of the key parameters; rho is Astar[2,1]
+```
+
+As in R, the tissue boundary comes from all cells of the section, and `DenMark()` grids the Tumor cells, drops the grids outside the tissue and fits the variable-area model. The first fit compiles the Stan model; later fits reuse it.
+
+### Step by step
+
+With your own data, start from one row per cell of the section, with coordinates `x`, `y`, the cell type and raw counts, one column per gene. The tissue boundary uses all cells; the model uses the cells of the focal population:
+
+```python
+import pandas as pd
+import denmark as dm
+
+cells = pd.read_csv("cells.csv")   # columns x, y, celltype and one count column per gene
+tissue = dm.alpha_shape(cells["x"], cells["y"])
+focal = cells[cells["celltype"] == "Tumor"].drop(columns="celltype")
+genes = dm.filter_genes(focal.drop(columns=["x", "y"]))
+res = dm.DenMark(focal, gene=genes[0], boundary=tissue, grid_size=30)
+```
+
+The functions behind `DenMark()` can also be run one at a time. On the toy data:
 
 ```python
 import os

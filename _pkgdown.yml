@@ -6,8 +6,16 @@ template:
 
 navbar:
   structure:
-    left: [intro, reference, articles, news]
+    left: [getstarted, reference, articles, news]
     right: [search, github, lightswitch]
+  components:
+    getstarted:
+      text: Get started
+      menu:
+      - text: In R
+        href: articles/DenMark.html
+      - text: In Python
+        href: articles/python.html
 
 reference:
   - title: Data preparation
@@ -71,10 +79,13 @@ reference:
       - q97.5
 
 articles:
+  - title: Get started
+    contents:
+      - DenMark
+      - articles/python
   - title: Articles
     navbar: ~
     contents:
-      - articles/python
       - articles/toy-data
       - articles/case-studies
       - articles/citation

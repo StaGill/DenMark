@@ -18,6 +18,10 @@ Both packages ship a simulated tissue section with a known answer, used by the e
 - 3,449 `Tumor` cells, the population analyzed, with true density-expression correlations ρ = 0.6 for `geneA`, 0 for `geneB` and -0.6 for `geneC`.
 - 4,000 `Other` cells, which only delineate the tissue; their counts carry no signal.
 
+### Load the data {.tabset}
+
+#### R
+
 ```{r load}
 library(DenMark)
 toy <- denmark_toy_data()
@@ -26,7 +30,7 @@ head(toy)
 table(toy$celltype)
 ```
 
-In Python:
+#### Python
 
 ```python
 import denmark as dm
@@ -74,6 +78,10 @@ plot_denmark_grid(g)
 
 The settings below are kept short so the page builds quickly: a 10 x 10 grid, 10 x 10 basis functions and two chains of 500 warm-up and 500 sampling iterations. An analysis uses the default sampler settings: four chains of 1,000 warm-up and 1,000 sampling iterations.
 
+### The scan {.tabset}
+
+#### R
+
 ```{r scan, eval = has_cmdstan && has_sf, message = FALSE}
 scan <- denmark_scan(tumor, boundary = tissue, grid_size = 10, basis = 10,
                      chains = 2, iter_warmup = 500, iter_sampling = 500, seed = 2024)
@@ -87,7 +95,7 @@ cat("> CmdStan or sf was not available when this page was built, so the chunks t
     "Install them with `cmdstanr::install_cmdstan()` and `install.packages(\"sf\")` and rebuild the page to see the results.\n")
 ```
 
-The same scan in Python:
+#### Python
 
 ```python
 import denmark as dm

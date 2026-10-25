@@ -1,5 +1,5 @@
 ---
-title: "Python interface"
+title: "Get started in Python"
 ---
 
 The Python package `denmark` mirrors the R package function by function. It grids the cells in the same order, builds the same Stan data and fits the same Stan models through [cmdstanpy](https://mc-stan.org/cmdstanpy/), so results from the two languages are directly comparable. Tests check that both build the same Stan data from the toy data, with and without the tissue boundary.

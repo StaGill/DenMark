@@ -1,8 +1,8 @@
 ---
-title: "Get started with DenMark"
+title: "Get started in R"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Get started with DenMark}
+  %\VignetteIndexEntry{Get started in R}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
