@@ -1,0 +1,43 @@
+---
+title: "R and Python side by side"
+---
+
+The R package `DenMark` and the Python package `denmark` build the same Stan data and fit the same Stan models, and they share their function names where Python allows it. The table maps each task to its function in both languages; the notes below it list the remaining differences. The R functions are documented in the [reference](../reference/index.html), and the Python functions in their docstrings (`help(dm.DenMark)`).
+
+## Functions
+
+| Task | R | Python |
+|---|---|---|
+| Gene filter | `denmark_filter_genes(expr)` | `filter_genes(expr)` |
+| Tissue boundary | `denmark_alpha_shape(x, y)` | `alpha_shape(x, y)` |
+| Grid | `buildgridpp(grid_size, dataset, gene)` | `buildgridpp(grid_size, dataset, gene)` |
+| Grid centroids | `grid_pts_centroid(grid_size, dataset)` | `grid_pts_centroid(grid_size, dataset)` |
+| HSGP basis indices | `denmark_hsgp_indices(basis)` | `hsgp_indices(basis)` |
+| Stan data | `denmark_prepare()` | `prepare_data()` |
+| Compile a model | `denmark_model()` | `compile_model()` |
+| Initial values | `denmark_init()`, which returns a function | `make_init()`, which returns a dict |
+| Fit one gene | `DenMark()`, `DenMarkmain()` | `DenMark()` or `denmark()`, `DenMarkmain()` |
+| Posterior summary | `denmark_summary(fit)` | `fit.summary()` |
+| Harmonized draws | `denmark_draws(fit)` | `fit.draws()`, `fit.rho` |
+| Latent fields | `denmark_fields(fit)` | `fit.fields()` |
+| Correlation decay | `denmark_decay(fit)` | `fit.decay()` |
+| HSGP check | `denmark_check_hsgp(fit)` | `fit.check_hsgp()` |
+| Gene scan | `denmark_scan()` | `scan_genes()` |
+| Save and reload | `denmark_save()`, `denmark_load()` (RDS) | `save_result()`, `load_result()` (pickle) |
+| Simulation | `denmark_simulate()` | `simulate()` |
+| Toy data | `denmark_toy_data()` | `denmark.datasets.load_toy()` |
+| Figures | `plot_denmark_boundary()`, `plot_denmark_grid()`, `plot_denmark_fields()`, `plot_denmark_decay()`, `plot_denmark_scan()` (ggplot2) | `plot_boundary()`, `plot_grid()`, `plot_fields()`, `plot_decay()`, `plot_scan()` (matplotlib figures) |
+| Matérn-3/2 covariance | `matern32(d, sigma, rho)` | `matern32(d, sigma, ell)` |
+
+## Differences to keep in mind
+
+- A fit returns a `DenMarkResult`, whose methods take the place of the R post-processing functions.
+- Grid indices start at 1 in R (`grid_index = i + (j - 1) * nx`) and at 0 in Python (`grid_index = i + j * nx`). In both, x varies fastest.
+- The tissue boundary is an sf polygon with the attribute `alpha` in R and a `TissueBoundary` in Python. Both languages take it as `boundary` in the same functions.
+- A few arguments have different names: `DenMark()` takes `inits` in Python and `init` in R, and `compile_model()` takes `force_compile` where `denmark_model()` takes `force_recompile`. The plot functions take `xlabel` and `ylabel` where R takes `xlab` and `ylab`, and `point_size` in `plot_boundary()` is a matplotlib marker area in points squared rather than a ggplot2 point size.
+- With a tissue boundary, the grid areas agree between the languages up to the last bit: sf computes polygon areas with GDAL's formula and shapely with GEOS's. Grid indices, types, counts and coordinates are identical.
+- The third argument of `matern32()` is the length-scale in both languages. R calls it `rho` for backward compatibility; it is not the density-expression correlation.
+- `simulate()` draws with numpy's generator, so it does not reproduce `denmark_simulate()` for the same seed. To compare the two languages on the same data, read the same file, as the toy data do.
+- With `save_dir`, `scan_genes()` caches one CSV row per gene and `denmark_scan()` one RDS file per gene.
+- `keep_fit=False` keeps only the draws of the key parameters, which saves memory in large scans; `fit.fields()` then needs a refit.
+- `DenMark(stan_file=...)` fits a custom Stan file, which must declare the same data and parameters as `DenMark.stan`, or as `DenMark-vararea.stan` when a boundary is given.

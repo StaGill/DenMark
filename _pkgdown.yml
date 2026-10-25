@@ -16,6 +16,13 @@ navbar:
         href: articles/DenMark.html
       - text: In Python
         href: articles/python.html
+    reference:
+      text: Reference
+      menu:
+      - text: R functions
+        href: reference/index.html
+      - text: R and Python side by side
+        href: articles/r-python.html
 
 reference:
   - title: Data preparation
@@ -83,6 +90,9 @@ articles:
     contents:
       - DenMark
       - articles/python
+  - title: Function reference
+    contents:
+      - articles/r-python
   - title: Articles
     navbar: ~
     contents:

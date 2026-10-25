@@ -1,4 +1,5 @@
-"""Run the Python examples of the README files as written, on the bundled toy data."""
+"""Run the Python examples of the README files and of the Get started in Python page as
+written, on the bundled toy data."""
 
 import re
 import sys
@@ -7,7 +8,8 @@ import pytest
 
 from .conftest import PKG_ROOT, REPO_ROOT, cmdstan_available
 
-PAGES = {"README.md": REPO_ROOT / "README.md", "python/README.md": PKG_ROOT / "README.md"}
+PAGES = {"README.md": REPO_ROOT / "README.md", "python/README.md": PKG_ROOT / "README.md",
+         "Get started in Python": REPO_ROOT / "vignettes" / "articles" / "python.Rmd"}
 # Examples that read the reader's own files cannot run here.
 NEEDS_FILES = ('read_csv("',)
 # Examples that fit a model need CmdStan, and the examples after them use the fits.
