@@ -41,15 +41,16 @@ correlations are known, so every estimate can be checked against the truth.
 
 ## Installation
 
-DenMark fits its models with Stan through
-[cmdstanr](https://mc-stan.org/cmdstanr/), which needs a working CmdStan
-installation, and computes the tissue boundary with sf. Install them once:
+DenMark is installed from the StaGILL R-universe. It fits its models with Stan
+through [cmdstanr](https://mc-stan.org/cmdstanr/), which needs a working
+CmdStan installation, and computes the tissue boundary with sf. Install them
+once:
 
 ```{r install, eval = FALSE}
-install.packages("cmdstanr",
-                 repos = c("https://stan-dev.r-universe.dev", getOption("repos")))
+install.packages(c("DenMark", "sf", "patchwork"),
+                 repos = c("https://stagill.r-universe.dev",
+                           "https://stan-dev.r-universe.dev", getOption("repos")))
 cmdstanr::install_cmdstan()
-install.packages("sf")
 ```
 
 ## The toy data

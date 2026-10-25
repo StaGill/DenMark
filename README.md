@@ -7,6 +7,7 @@
   <a href="https://github.com/StaGill/DenMark/actions/workflows/R-CMD-check.yaml"><img src="https://github.com/StaGill/DenMark/actions/workflows/R-CMD-check.yaml/badge.svg?branch=main" alt="R-CMD-check"></a>
   <a href="https://github.com/StaGill/DenMark/actions/workflows/python-tests.yml"><img src="https://github.com/StaGill/DenMark/actions/workflows/python-tests.yml/badge.svg?branch=main" alt="python-tests"></a>
   <a href="https://stagill.github.io/DenMark/"><img src="https://github.com/StaGill/DenMark/actions/workflows/pkgdown.yaml/badge.svg?branch=main" alt="docs"></a>
+  <a href="https://stagill.r-universe.dev/DenMark"><img src="https://stagill.r-universe.dev/badges/DenMark" alt="R-universe"></a>
   <a href="https://github.com/StaGill/DenMark/releases"><img src="https://img.shields.io/github/v/release/StaGill/DenMark" alt="release"></a>
   <a href="https://github.com/StaGill/DenMark/blob/main/LICENSE"><img src="https://img.shields.io/github/license/StaGill/DenMark" alt="license"></a>
 </p>
@@ -89,15 +90,17 @@ The documentation site has a Get started page for each: [in R](https://stagill.g
 
 ### Installation
 
-DenMark fits its models with Stan through [cmdstanr](https://mc-stan.org/cmdstanr/), which is distributed from the Stan R-universe (<https://stan-dev.r-universe.dev>) rather than CRAN. From a terminal:
+DenMark is distributed from the StaGILL R-universe (<https://stagill.r-universe.dev>), which builds it for Windows, macOS and Linux after every change, and it fits its models with Stan through [cmdstanr](https://mc-stan.org/cmdstanr/), distributed from the Stan R-universe. In R:
 
-```bash
-Rscript -e 'install.packages(c("remotes", "cmdstanr", "sf"), repos = c("https://stan-dev.r-universe.dev", "https://cloud.r-project.org"))'
-Rscript -e 'remotes::install_github("StaGill/DenMark")'
-Rscript -e 'cmdstanr::install_cmdstan()'
+```r
+install.packages(c("DenMark", "sf", "patchwork"),
+                 repos = c("https://stagill.r-universe.dev",
+                           "https://stan-dev.r-universe.dev",
+                           "https://cloud.r-project.org"))
+cmdstanr::install_cmdstan()
 ```
 
-The same three calls can be run in an R session. `install_cmdstan()` downloads and builds CmdStan once per machine and needs a C++ toolchain (Rtools on Windows, the Xcode command line tools on macOS). The sf package is needed only for the tissue boundary (`denmark_alpha_shape()`); DenMark installs and fits models without it.
+`install_cmdstan()` downloads and builds CmdStan once per machine and needs a C++ toolchain (Rtools on Windows, the Xcode command line tools on macOS). The sf package is needed only for the tissue boundary (`denmark_alpha_shape()`) and patchwork only to combine figure panels; DenMark installs and fits models without them.
 
 ```r
 library(DenMark)
