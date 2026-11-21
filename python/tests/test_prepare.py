@@ -80,8 +80,8 @@ def test_bbox_sets_the_domain(cells):
 def test_scale_terms(cells):
     out = dm.prepare_data(cells, gene="g", grid_size=(6, 4), basis=5)
     sd, info = out["stan_data"], out["info"]
-    c = sd["coords"]
-    dmax = np.hypot(c[:, 0].max() - c[:, 0].min(), c[:, 1].max() - c[:, 1].min())
+    from scipy.spatial.distance import pdist
+    dmax = pdist(sd["coords"]).max()          # largest distance between grid centroids
     assert info["max_dist"] == pytest.approx(dmax)
     assert sd["mrange"] == pytest.approx(dmax / 5.5)
     assert sd["log_grid_area"] == pytest.approx(np.log(info["step"][0] * info["step"][1]))

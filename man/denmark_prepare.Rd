@@ -14,7 +14,12 @@ denmark_prepare(
   L1 = NULL,
   L2 = NULL,
   boundary = NULL,
-  min_area_frac = 0
+  min_area_frac = 0,
+  offset = c("cells", "umi"),
+  umi = NULL,
+  units = FALSE,
+  cells = "Y",
+  area = "area"
 )
 }
 \arguments{
@@ -42,26 +47,57 @@ the variable-area model \code{DenMark-vararea.stan} is used.}
 
 \item{min_area_frac}{Drop boundary grid cells whose area inside the tissue
 is below this fraction of a full grid cell (default 0: keep all).}
+
+\item{offset}{Exposure of the expression counts. \code{"cells"} (the default)
+uses the number of focal cells in each grid cell, \code{log(Y + 0.05)}, so
+that rho describes expression per cell. \code{"umi"} uses the total count of
+the focal cells in each grid cell, \code{log(T + 0.05)} with \code{T} summed from
+the column \code{umi}, so that rho describes the share of the transcriptome
+taken by the gene; it suits sequencing data, whose depth varies across
+the capture area. The two estimands differ and are not interchangeable.
+\code{"umi"} uses the model \code{DenMark-vararea-umi.stan}.}
+
+\item{umi}{With \code{offset = "umi"}, the column of \code{dataset} holding the total
+count of each cell (or, with \code{units = TRUE}, of each unit).}
+
+\item{units}{If \code{TRUE}, each row of \code{dataset} is already a modelling unit
+(for example a super-grid from \code{\link[=denmark_pool_visium]{denmark_pool_visium()}}) with the columns
+\code{x}, \code{y}, \code{cells}, \code{area}, the expression column and, for
+\code{offset = "umi"}, \code{umi}; no grid is built and \code{grid_size}, \code{bbox},
+\code{boundary} and \code{min_area_frac} are ignored. As in the spot-level
+analysis of the paper, the HSGP half-widths are \code{boundfactor} times the
+largest centered coordinate, and \code{mrange} uses the largest distance
+between units.}
+
+\item{cells, area}{With \code{units = TRUE}, the columns holding the number of
+focal cells (or nuclei) and the area of each unit.}
 }
 \value{
 A list with the elements
 \item{stan_data}{Data list for the Stan models: \code{n}, \code{y1} (cell counts),
 \code{y2} (summed expression), \code{d}, \code{mstar}, \code{coords} (centered grid
 centroids), \code{log_grid_area} (one value, or one per grid cell with a
-boundary), \code{mrange}, \code{indices}, \code{L} and \code{is_centerted_PHI}.}
+boundary or with \code{offset = "umi"}), \code{mrange}, \code{indices}, \code{L},
+\code{is_centerted_PHI} and, with \code{offset = "umi"}, \code{log_umi}.}
 \item{grid}{The grid from \code{\link[=buildgridpp]{buildgridpp()}} (without the exterior grid
 cells when a boundary is given) with the centered coordinates \code{cx} and
 \code{cy}.}
 \item{info}{Gene, grid geometry, HSGP settings, number of cells, the
-count matrices \code{Ymat} and \code{Mmat}, and for the tissue boundary
-\code{vararea}, \code{boundary}, \code{n_grid_total}, \code{n_interior} and \code{n_boundary}.}
+count matrices \code{Ymat} and \code{Mmat}, for the tissue boundary \code{vararea},
+\code{boundary}, \code{n_grid_total}, \code{n_interior} and \code{n_boundary}, and
+\code{offset}, \code{umi} and \code{units}.}
 }
 \description{
 The grid is centered at the origin, so that the region of interest becomes
 \verb{[-L1, L1] x [-L2, L2]}; the grid centroids are the HSGP input coordinates
 and the HSGP domain is \code{boundfactor * c(L1, L2)}. With a tissue
 \code{boundary}, the grid cells outside the tissue are removed first and the
-region of interest is that of the retained grid.
+region of interest is that of the retained grid. The scale of the
+inverse-gamma prior on the length-scales, \code{mrange}, is the largest distance
+between the retained grid centroids divided by \code{2 * 2.75}, so that the
+prior mean puts the practical range of the Matern-3/2 correlation (the
+distance at which it falls to 0.05) at half that distance, as in the
+analyses of the paper.
 }
 \examples{
 toy <- denmark_toy_data()

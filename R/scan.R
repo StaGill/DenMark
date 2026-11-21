@@ -10,8 +10,11 @@
 #' otherwise.
 #'
 #' @param data Data frame with columns `x`, `y` and one column per gene
-#'   (cells in rows).
-#' @param genes Genes to scan (default: all non-coordinate columns).
+#'   (cells in rows), and the columns that `offset = "umi"` (`umi`) or
+#'   `units = TRUE` (`cells`, `area`) need; see [DenMark()].
+#' @param genes Genes to scan (default: all columns other than `x`, `y` and
+#'   those columns, and with `units = TRUE` other than `unit` and `n_spots`,
+#'   which [denmark_pool_visium()] adds).
 #' @param save_dir Optional folder; one `.rds` file per gene is written, and
 #'   genes already present are loaded instead of refitted (resumable scans).
 #' @param cred_level Credible level used to call DCGs.
@@ -51,7 +54,15 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
   if (length(workers) != 1 || is.na(workers) || workers < 1 || workers != round(workers))
     stop("`workers` must be a positive whole number.")
   data <- as.data.frame(data)
-  if (is.null(genes)) genes <- setdiff(names(data), c("x", "y"))
+  dots <- list(...)
+  units <- isTRUE(dots[["units"]])
+  extra <- c(if (identical(dots[["offset"]], "umi")) dots[["umi"]],
+             if (units) c(if (is.null(dots[["cells"]])) "Y" else dots[["cells"]],
+                          if (is.null(dots[["area"]])) "area" else dots[["area"]]))
+  miss <- setdiff(extra, names(data))
+  if (length(miss)) stop("Missing column(s) in `data`: ", paste(miss, collapse = ", "), ".")
+  cols <- c("x", "y", extra)
+  if (is.null(genes)) genes <- setdiff(names(data), c(cols, if (units) c("unit", "n_spots")))
   genes <- intersect(genes, names(data))
   if (!length(genes)) stop("None of the requested genes are columns of `data`.")
   if (!is.null(save_dir)) dir.create(save_dir, showWarnings = FALSE, recursive = TRUE)
@@ -62,7 +73,7 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
     if (!is.null(f_rds) && file.exists(f_rds)) return(readRDS(f_rds))
     t0 <- Sys.time()
     row <- tryCatch({
-      f2 <- DenMark(data[, c("x", "y", g)], gene = g,
+      f2 <- DenMark(data[, unique(c(cols, g))], gene = g,
                     keep_fit = FALSE, quiet = quiet, ...)
       rho <- denmark_draws(f2)$rho
       r <- data.frame(gene = g,
@@ -89,7 +100,7 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
   }
 
   rows <- if (workers > 1 && length(genes) > 1) {
-    .denmark_parallel_lapply(genes, one_gene, workers, list(...))
+    .denmark_parallel_lapply(genes, one_gene, workers, dots)
   } else lapply(genes, one_gene)
   cols <- unique(unlist(lapply(rows, names)))
   res <- do.call(rbind, lapply(rows, function(r) {
@@ -112,7 +123,9 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
 .denmark_parallel_lapply <- function(genes, one_gene, workers, dots) {
   if (!requireNamespace("future.apply", quietly = TRUE))
     stop("`workers > 1` needs the 'future.apply' package: install.packages('future.apply')")
-  denmark_model(stan_file = dots$stan_file, vararea = !is.null(dots$boundary))
+  denmark_model(stan_file = dots$stan_file,
+                vararea = !is.null(dots$boundary) || isTRUE(dots[["units"]]),
+                umi = identical(dots[["offset"]], "umi"))
   old_plan <- future::plan(future::multisession, workers = min(workers, length(genes)))
   on.exit(future::plan(old_plan), add = TRUE)
   future.apply::future_lapply(genes, one_gene, future.seed = TRUE)

@@ -38,6 +38,7 @@ reference:
       - grid_pts_centroid
       - denmark_hsgp_indices
       - denmark_prepare
+      - denmark_pool_visium
   - title: Model fitting
     desc: >
       Fit the DenMark model, which estimates the density-expression

@@ -17,9 +17,12 @@ denmark_scan(
 }
 \arguments{
 \item{data}{Data frame with columns \code{x}, \code{y} and one column per gene
-(cells in rows).}
+(cells in rows), and the columns that \code{offset = "umi"} (\code{umi}) or
+\code{units = TRUE} (\code{cells}, \code{area}) need; see \code{\link[=DenMark]{DenMark()}}.}
 
-\item{genes}{Genes to scan (default: all non-coordinate columns).}
+\item{genes}{Genes to scan (default: all columns other than \code{x}, \code{y} and
+those columns, and with \code{units = TRUE} other than \code{unit} and \code{n_spots},
+which \code{\link[=denmark_pool_visium]{denmark_pool_visium()}} adds).}
 
 \item{save_dir}{Optional folder; one \code{.rds} file per gene is written, and
 genes already present are loaded instead of refitted (resumable scans).}

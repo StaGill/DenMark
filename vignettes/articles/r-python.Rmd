@@ -13,6 +13,7 @@ The R package `DenMark` and the Python package `denmark` build the same Stan dat
 | Tissue boundary | `denmark_alpha_shape(x, y)` | `alpha_shape(x, y)` |
 | Grid | `buildgridpp(grid_size, dataset, gene)` | `buildgridpp(grid_size, dataset, gene)` |
 | Grid centroids | `grid_pts_centroid(grid_size, dataset)` | `grid_pts_centroid(grid_size, dataset)` |
+| Visium spots into seven-spot super-grids | `denmark_pool_visium(spots)` | `pool_visium(spots)` |
 | HSGP basis indices | `denmark_hsgp_indices(basis)` | `hsgp_indices(basis)` |
 | Stan data | `denmark_prepare()` | `prepare_data()` |
 | Compile a model | `denmark_model()` | `compile_model()` |
@@ -42,4 +43,5 @@ The R package `DenMark` and the Python package `denmark` build the same Stan dat
 - `simulate()` draws with numpy's generator, so it does not reproduce `denmark_simulate()` for the same seed. To compare the two languages on the same data, read the same file, as the toy data do.
 - With `save_dir`, `scan_genes()` caches one CSV row per gene and `denmark_scan()` one RDS file per gene.
 - `keep_fit=False` keeps only the draws of the key parameters, which saves memory in large scans; `fit.fields()` then needs a refit.
-- `DenMark(stan_file=...)` fits a custom Stan file, which must declare the same data and parameters as `DenMark.stan`, or as `DenMark-vararea.stan` when a boundary is given.
+- `DenMark(stan_file=...)` fits a custom Stan file, which must declare the same data and parameters as `DenMark.stan`, as `DenMark-vararea.stan` when a boundary is given or the units are pre-aggregated (`units = TRUE`), or as `DenMark-vararea-umi.stan` with `offset = "umi"`.
+- The pools of `denmark_pool_visium()` give the unit of each spot in the attribute `spot_unit`, and those of `pool_visium()` in `units.attrs["spot_unit"]`, which some pandas operations drop.

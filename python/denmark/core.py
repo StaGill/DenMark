@@ -59,7 +59,7 @@ except ImportError:  # pragma: no cover - the module still imports for grid work
 
 __all__ = [
     "filter_genes", "alpha_shape", "TissueBoundary", "buildgridpp", "grid_pts_centroid",
-    "hsgp_indices", "prepare_data", "compile_model", "make_init", "DenMark", "denmark",
+    "hsgp_indices", "prepare_data", "pool_visium", "compile_model", "make_init", "DenMark", "denmark",
     "DenMarkmain", "DenMarkResult", "scan_genes", "from_anndata", "annotate",
     "matern32", "simulate", "save_result", "load_result", "plot_boundary", "plot_grid",
     "plot_fields", "plot_decay", "plot_scan",
@@ -88,8 +88,9 @@ def _matern32_range_factor(threshold=0.05):
     return u / np.sqrt(3.0)
 
 
-def _xyz(dataset: pd.DataFrame, gene=None, x="x", y="y") -> tuple:
-    """Standardise the input to arrays x, y, gene counts."""
+def _xyz(dataset: pd.DataFrame, gene=None, x="x", y="y", umi=None) -> tuple:
+    """Standardise the input to arrays x, y, gene counts and, when `umi` names
+    a column, the total count of each cell (otherwise None)."""
     df = pd.DataFrame(dataset)
     if not {x, y} <= set(df.columns):
         if df.shape[1] < 3:
@@ -97,7 +98,7 @@ def _xyz(dataset: pd.DataFrame, gene=None, x="x", y="y") -> tuple:
         warnings.warn(f"Columns '{x}'/'{y}' not found; using columns 1 and 2 as x and y.")
         df = df.rename(columns={df.columns[0]: x, df.columns[1]: y})
     if gene is None:
-        others = [c for c in df.columns if c not in (x, y)]
+        others = [c for c in df.columns if c not in (x, y, umi)]
         if not others:
             raise ValueError("No expression column found in `dataset`.")
         gene = others[0]
@@ -106,7 +107,14 @@ def _xyz(dataset: pd.DataFrame, gene=None, x="x", y="y") -> tuple:
     if not pd.api.types.is_numeric_dtype(df[gene]):
         raise ValueError(f"Column '{gene}' is not numeric: pass `gene=`, and drop non-numeric "
                          "columns such as a cell-type label.")
-    sub = df[[x, y, gene]].astype(float)
+    cols = [x, y, gene]
+    if umi is not None:
+        if umi not in df.columns:
+            raise ValueError(f"Column '{umi}' (total counts per cell) is not a column of `dataset`.")
+        if not pd.api.types.is_numeric_dtype(df[umi]):
+            raise ValueError(f"Column '{umi}' is not numeric.")
+        cols.append(umi)
+    sub = df[cols].astype(float)
     ok = sub.notna().all(axis=1).to_numpy()
     if not ok.all():
         warnings.warn(f"{(~ok).sum()} cell(s) with missing coordinates/expression removed.")
@@ -114,7 +122,28 @@ def _xyz(dataset: pd.DataFrame, gene=None, x="x", y="y") -> tuple:
     v = sub[gene].to_numpy()
     if (v < 0).any():
         raise ValueError("Expression values must be non-negative counts.")
-    return sub[x].to_numpy(), sub[y].to_numpy(), v, gene
+    u = None
+    if umi is not None:
+        u = sub[umi].to_numpy()
+        if (u < 0).any():
+            raise ValueError(f"Total counts in '{umi}' must be non-negative.")
+    return sub[x].to_numpy(), sub[y].to_numpy(), v, gene, u
+
+
+def _max_dist(coords) -> float:
+    """Largest distance between the rows of a two-column array (the diameter
+    of the point set), computed between convex-hull vertices, where the
+    farthest pair lies."""
+    from scipy.spatial.distance import pdist
+    pts = np.asarray(coords, float)
+    if len(pts) < 2:
+        return 0.0
+    try:
+        from scipy.spatial import ConvexHull
+        pts = pts[ConvexHull(pts).vertices]
+    except Exception:          # collinear or too few points: use them all
+        pass
+    return float(pdist(pts).max())
 
 
 def _grid_dims(grid_size) -> tuple:
@@ -266,7 +295,7 @@ def _grid_area(grid: pd.DataFrame, step, boundary) -> pd.DataFrame:
 
 
 def buildgridpp(grid_size, dataset: pd.DataFrame, gene=None, bbox=None,
-                boundary=None) -> dict:
+                boundary=None, umi=None) -> dict:
     """Discretise cell locations and expression on a regular grid.
 
     Each cell is assigned to exactly one grid cell. Vectors are ordered with x
@@ -281,10 +310,15 @@ def buildgridpp(grid_size, dataset: pd.DataFrame, gene=None, bbox=None,
     Returns a dict with keys
       loc_mark_mat (N x 2: point = Y, mark = M), Ymat, Mmat (nx x ny, rows = x),
       grid (DataFrame: grid_index, i, j, x, y [centroids], Y, M, area [area
-      inside the tissue; the full grid cell area without a boundary], type),
+      inside the tissue; the full grid cell area without a boundary], type,
+      and T [summed total counts] when `umi` is given),
       bbox, step, grid_area, grid_size, gene, boundary (None without one).
+
+    :param umi: optional column with the total count of each cell (all
+        genes); its sum over the cells of each grid cell is returned as `T`,
+        the exposure used with ``offset="umi"`` in prepare_data().
     """
-    x, y, v, gene = _xyz(dataset, gene)
+    x, y, v, gene, u = _xyz(dataset, gene, umi=umi)
     nx, ny = _grid_dims(grid_size)
     bbox_from_boundary = bbox is None and boundary is not None
     if bbox_from_boundary:
@@ -296,6 +330,8 @@ def buildgridpp(grid_size, dataset: pd.DataFrame, gene=None, bbox=None,
         print(f"{int((~inside).sum())} cell(s) lie outside the extent of the tissue "
               "boundary and are dropped.")
     x, y, v = x[inside], y[inside], v[inside]
+    if u is not None:
+        u = u[inside]
     if x.size == 0:
         raise ValueError("No cells inside the extent of the tissue boundary; are the cells "
                          "and the boundary in the same units?" if bbox_from_boundary
@@ -317,6 +353,8 @@ def buildgridpp(grid_size, dataset: pd.DataFrame, gene=None, bbox=None,
         "grid_index": np.arange(nx * ny), "i": gi, "j": gj,
         "x": bb[0] + (gi + 0.5) * dx, "y": bb[2] + (gj + 0.5) * dy,
         "Y": Y, "M": M, "area": dx * dy, "type": "interior"})
+    if u is not None:                 # total counts per grid cell (exposure for offset="umi")
+        grid["T"] = np.bincount(idx, weights=u, minlength=nx * ny)
     if boundary is not None:
         ga = _grid_area(grid, (dx, dy), boundary)
         grid["area"] = ga["area"]
@@ -353,7 +391,8 @@ def hsgp_indices(basis) -> np.ndarray:
 
 def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
                  boundfactor=1.5, bbox=None, L1=None, L2=None, boundary=None,
-                 min_area_frac=0) -> dict:
+                 min_area_frac=0, offset="cells", umi=None, units=False,
+                 cells="Y", area="area") -> dict:
     """Build the Stan data dict for DenMark.
 
     The grid is centered at the origin, so the ROI becomes [-L1, L1] x
@@ -362,18 +401,51 @@ def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
     the grid cells outside the tissue are removed first and the ROI is that of
     the retained grid; each remaining grid cell enters with its own area
     inside the tissue, so `log_grid_area` becomes a vector and DenMark() uses
-    the variable-area model DenMark-vararea.stan.
+    the variable-area model DenMark-vararea.stan. The scale of the
+    inverse-gamma prior on the length-scales, `mrange`, is the largest
+    distance between the retained grid centroids divided by 2 * 2.75, so that
+    the prior mean puts the practical range of the Matern-3/2 correlation
+    (the distance at which it falls to 0.05) at half that distance, as in the
+    analyses of the paper.
 
     :param min_area_frac: with a boundary, drop the grid cells whose area
         inside the tissue is below this fraction of a full grid cell (default
         0: keep all).
+    :param offset: exposure of the expression counts. "cells" (the default)
+        uses the number of focal cells in each grid cell, log(Y + 0.05), so
+        that rho describes expression per cell. "umi" uses the total count of
+        the focal cells in each grid cell, log(T + 0.05) with T summed from
+        the column `umi`, so that rho describes the share of the
+        transcriptome taken by the gene; it suits sequencing data, whose
+        depth varies across the capture area. The two estimands differ and
+        are not interchangeable. "umi" uses DenMark-vararea-umi.stan.
+    :param umi: with offset="umi", the column holding the total count of each
+        cell (or, with units=True, of each unit).
+    :param units: if True, each row of `dataset` is already a modelling unit
+        (for example a super-grid from pool_visium()) with the columns x, y,
+        `cells`, `area`, the expression column and, for offset="umi", `umi`;
+        no grid is built and grid_size, bbox, boundary and min_area_frac are
+        ignored. As in the spot-level analysis of the paper, the HSGP
+        half-widths are boundfactor times the largest centered coordinate,
+        and `mrange` uses the largest distance between units.
+    :param cells, area: with units=True, the columns holding the number of
+        focal cells (or nuclei) and the area of each unit.
     :return: dict(stan_data, grid, info). `grid` lacks the grid cells outside
         the tissue; `info` also holds vararea, boundary, n_grid_total,
-        n_interior and n_boundary.
+        n_interior, n_boundary, offset, umi and units. With offset="umi",
+        `stan_data` also holds `log_umi`.
     """
     if boundfactor < 1:
         raise ValueError("`boundfactor` must be >= 1.")
-    g = buildgridpp(grid_size, dataset, gene=gene, bbox=bbox, boundary=boundary)
+    if offset not in ("cells", "umi"):
+        raise ValueError("`offset` must be 'cells' or 'umi'.")
+    if offset == "umi" and umi is None:
+        raise ValueError('offset="umi" needs `umi=`, the column with the total count of each cell.')
+    if units:
+        return _prepare_units(dataset, gene=gene, basis=basis, boundfactor=boundfactor,
+                              offset=offset, umi=umi, cells=cells, area=area)
+    g = buildgridpp(grid_size, dataset, gene=gene, bbox=bbox, boundary=boundary,
+                    umi=umi if offset == "umi" else None)
     bb = g["bbox"]
     vararea = boundary is not None
     grid = g["grid"].copy()
@@ -394,7 +466,13 @@ def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
                           "the data value is used.")
     coords = np.column_stack([grid["x"] - centre[0], grid["y"] - centre[1]])
     S = hsgp_indices(basis)
-    dmax = float(np.hypot(np.ptp(coords[:, 0]), np.ptp(coords[:, 1])))
+    dmax = _max_dist(coords)                       # largest distance between grid centroids
+    if vararea:
+        log_area = np.log(grid["area"].to_numpy(float))
+    elif offset == "umi":
+        log_area = np.full(len(grid), float(np.log(g["grid_area"])))
+    else:
+        log_area = float(np.log(g["grid_area"]))
     stan_data = dict(
         n=int(coords.shape[0]),
         y1=grid["Y"].to_numpy(int),                # outcome 1: cell counts
@@ -402,12 +480,13 @@ def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
         d=2,
         mstar=int(S.shape[0]),
         coords=coords,
-        log_grid_area=(np.log(grid["area"].to_numpy(float)) if vararea
-                       else float(np.log(g["grid_area"]))),     # area offset
+        log_grid_area=log_area,                    # area offset
         mrange=dmax / (2 * 2.75),
         indices=S,
         L=(boundfactor * half).tolist(),
         is_centerted_PHI=0)
+    if offset == "umi":
+        stan_data["log_umi"] = np.log(grid["T"].to_numpy(float) + 0.05)   # total-count exposure
     grid["cx"], grid["cy"] = coords[:, 0], coords[:, 1]
     info = dict(gene=g["gene"], grid_size=g["grid_size"], step=g["step"],
                 grid_area=g["grid_area"], bbox=bb, centre=centre,
@@ -416,21 +495,209 @@ def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
                 n_cells=int(grid["Y"].sum()), Ymat=g["Ymat"], Mmat=g["Mmat"],
                 vararea=vararea, boundary=boundary, n_grid_total=len(g["grid"]),
                 n_interior=int((grid["type"] == "interior").sum()),
-                n_boundary=int((grid["type"] == "boundary").sum()))
+                n_boundary=int((grid["type"] == "boundary").sum()),
+                offset=offset, umi=umi, units=False)
     return dict(stan_data=stan_data, grid=grid, info=info)
+
+
+def _prepare_units(dataset, gene, basis, boundfactor, offset, umi, cells, area) -> dict:
+    """Stan data for pre-aggregated units (one row per unit, no grid), as in
+    the spot-level Visium analysis of the paper: coordinates centered at the
+    middle of their range, HSGP half-widths boundfactor times the largest
+    centered coordinate, and `mrange` from the largest distance between units."""
+    d = pd.DataFrame(dataset)
+    if gene is None:
+        raise ValueError("With units=True, pass the expression column as `gene=`.")
+    need = list(dict.fromkeys(["x", "y", cells, area, gene] + ([umi] if offset == "umi" else [])))
+    missing = [c for c in need if c not in d.columns]
+    if missing:
+        raise ValueError(f"Missing column(s) in the units: {', '.join(missing)}.")
+    for c in need:
+        if not pd.api.types.is_numeric_dtype(d[c]):
+            raise ValueError(f"Column '{c}' is not numeric.")
+    ok = d[need].notna().all(axis=1).to_numpy()
+    if not ok.all():
+        warnings.warn(f"{(~ok).sum()} unit(s) with missing values removed.")
+        d = d[ok]
+    d = d.reset_index(drop=True)
+    if len(d) < 3:
+        raise ValueError("Fewer than three units.")
+    if (d[area] <= 0).any():
+        raise ValueError("Unit areas must be positive.")
+    for c in (cells, gene):
+        v = d[c].to_numpy(float)
+        if (v < 0).any() or np.any(np.abs(v - np.round(v)) > 1e-8):
+            raise ValueError(f"Column '{c}' must hold non-negative integer counts.")
+    x, y = d["x"].to_numpy(float), d["y"].to_numpy(float)
+    centre = np.array([(x.min() + x.max()) / 2, (y.min() + y.max()) / 2])
+    coords = np.column_stack([x - centre[0], y - centre[1]])
+    half = np.array([np.abs(coords[:, 0]).max(), np.abs(coords[:, 1]).max()])
+    S = hsgp_indices(basis)
+    dmax = _max_dist(coords)
+    y1 = np.round(d[cells].to_numpy(float)).astype(int)
+    y2 = np.round(d[gene].to_numpy(float)).astype(int)
+    stan_data = dict(
+        n=int(len(d)), y1=y1, y2=y2, d=2, mstar=int(S.shape[0]), coords=coords,
+        log_grid_area=np.log(d[area].to_numpy(float)),
+        mrange=dmax / (2 * 2.75), indices=S,
+        L=(boundfactor * half).tolist(), is_centerted_PHI=0)
+    if offset == "umi":
+        stan_data["log_umi"] = np.log(d[umi].to_numpy(float) + 0.05)
+    grid = pd.DataFrame({"grid_index": np.arange(len(d)), "i": np.nan, "j": np.nan,
+                         "x": x, "y": y, "Y": y1, "M": y2,
+                         "area": d[area].to_numpy(float), "type": "unit"})
+    if offset == "umi":
+        grid["T"] = d[umi].to_numpy(float)
+    grid["cx"], grid["cy"] = coords[:, 0], coords[:, 1]
+    info = dict(gene=gene, grid_size=(None, None), step=(None, None), grid_area=None,
+                bbox=np.array([x.min(), x.max(), y.min(), y.max()]), centre=centre,
+                L1=float(half[0]), L2=float(half[1]), basis=basis,
+                boundfactor=boundfactor, max_dist=dmax, n_cells=int(y1.sum()),
+                Ymat=None, Mmat=None, vararea=True, boundary=None,
+                n_grid_total=int(len(d)), n_interior=int(len(d)), n_boundary=0,
+                offset=offset, umi=umi, units=True)
+    return dict(stan_data=stan_data, grid=grid, info=info)
+
+
+def _rdist(a, b) -> np.ndarray:
+    """Euclidean distances between the rows of `a` and the rows of `b`,
+    summed coordinate by coordinate as fields::rdist() does in R."""
+    a = np.asarray(a, float)
+    b = np.asarray(b, float)
+    d2 = np.zeros((a.shape[0], b.shape[0]))
+    for k in range(a.shape[1]):
+        d2 += (a[:, k][:, None] - b[:, k][None, :]) ** 2
+    return np.sqrt(d2)
+
+
+def _pool_aperture7_xy(x_um, y_um, pitch):
+    """Mingchi Xu's aperture-7 pooling from the spot-level Visium analysis of
+    the paper (R function pool_aperture7_xy in
+    CodeInPaper/Visium-ColorectalCancer), ported line by line. Spots are
+    snapped to the hexagonal lattice of pitch `pitch` and assigned to the
+    nearest point of the coarser lattice spanned by v1 and v2, whose cells
+    hold seven spots: a centre and its six neighbours. Returns the 1-based
+    index of that lattice point for each spot and the snapped coordinates."""
+    x_um = np.asarray(x_um, float)
+    y_um = np.asarray(y_um, float)
+    ax = x_um / pitch; ay = y_um / (pitch * np.sqrt(3) / 2); r = np.round(ay); q = np.round(ax - r / 2)
+    ex = q + r / 2; ey = (np.sqrt(3) / 2) * r
+    v1 = np.array([2.5, np.sqrt(3) / 2]); v2 = np.array([0.5, 1.5 * np.sqrt(3)])
+    B = np.column_stack([v1, v2]); P = np.column_stack([ex, ey])
+    anchor = P[np.argmin(((P - P.mean(axis=0)) ** 2).sum(axis=1))]
+    AB = np.linalg.solve(B, (P - anchor).T).T
+    a_rng = np.arange(np.floor(AB[:, 0].min()) - 1, np.ceil(AB[:, 0].max()) + 2)
+    b_rng = np.arange(np.floor(AB[:, 1].min()) - 1, np.ceil(AB[:, 1].max()) + 2)
+    G = np.array([(a, b) for b in b_rng for a in a_rng], dtype=float)   # expand.grid: A fastest
+    sid = _rdist(P, G @ B.T + anchor).argmin(axis=1) + 1
+    return sid, ex, ey
+
+
+def pool_visium(spots: pd.DataFrame, genes=None, x="x", y="y", cells="Y", umi="UMI",
+                pitch=100.0, min_spots=3, spot_area=np.pi * 27.5 ** 2) -> pd.DataFrame:
+    """Pool Visium spots into seven-spot super-grids.
+
+    A Visium section holds thousands of spots, and the cost of a DenMark fit
+    grows with the number of units. As in the spot-level analysis of the
+    paper, adjacent spots are pooled into hexagonal super-grids of seven spots
+    (a spot and its six neighbours, an aperture-7 tiling of the spot
+    lattice). Pools with fewer than `min_spots` spots, which arise at the edge
+    of the region, are folded into the nearest pool with at least `min_spots`
+    spots. Counts are summed over the spots of each pool, and each pool gets
+    the area ``n_spots * spot_area``, which enters the model as its area
+    offset. The cell (or nucleus) count per spot comes from outside DenMark,
+    for example from nuclei segmented in the H&E image.
+
+    :param spots: one row per spot: coordinates, number of focal cells or
+        nuclei, optionally the total count per spot, and gene count columns.
+    :param genes: gene count columns to sum (default: every numeric column
+        other than the coordinates, `cells` and `umi`).
+    :param x, y: coordinate columns, in the unit of `pitch` (micrometres).
+    :param cells: column with the number of cells or nuclei per spot.
+    :param umi: column with the total count per spot, summed for
+        offset="umi"; None to skip.
+    :param pitch: centre-to-centre distance between neighbouring spots (100
+        micrometres on Visium).
+    :param min_spots: pools with fewer spots are folded into the nearest
+        larger pool.
+    :param spot_area: area of one spot (default: a 55-micrometre spot). With
+        a common value it only shifts the intercept of the density model.
+    :return: one row per super-grid with the columns unit, x, y (mean spot
+        coordinates), the summed `cells` and `umi` columns under their input
+        names, n_spots, area and the summed gene counts. ``attrs["spot_unit"]``
+        gives the unit of each input spot. Pass the result to DenMark() with
+        ``units=True``.
+    """
+    df = pd.DataFrame(spots)
+    need = [c for c in (x, y, cells, umi) if c is not None]
+    missing = [c for c in need if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing column(s) in `spots`: {', '.join(missing)}.")
+    if genes is None:
+        genes = [c for c in df.columns
+                 if pd.api.types.is_numeric_dtype(df[c]) and not pd.api.types.is_bool_dtype(df[c])
+                 and c not in need]
+    elif isinstance(genes, str):
+        genes = [genes]
+    missing = [g for g in genes if g not in df.columns]
+    if missing:
+        raise ValueError(f"Gene column(s) not in `spots`: {', '.join(missing)}.")
+    for c in need + list(genes):
+        if not pd.api.types.is_numeric_dtype(df[c]):
+            raise ValueError(f"Column '{c}' is not numeric.")
+        if df[c].isna().any():
+            raise ValueError(f"Column '{c}' has missing values.")
+    for c in [cells] + list(genes):
+        v = df[c].to_numpy(float)
+        if (v < 0).any() or np.any(np.abs(v - np.round(v)) > 1e-8):
+            raise ValueError(f"Column '{c}' must hold non-negative integer counts.")
+    if len(df) < 2:
+        raise ValueError("At least two spots are needed.")
+    if pitch <= 0:
+        raise ValueError("`pitch` must be positive.")
+
+    sid, ex, ey = _pool_aperture7_xy(df[x], df[y], pitch)
+    sid = np.unique(sid, return_inverse=True)[1] + 1            # as.integer(factor(sid))
+    # fold orphan pools (< min_spots spots) into the nearest large pool
+    labels, counts = np.unique(sid, return_counts=True)
+    large = labels[counts >= min_spots]
+    sm = ~np.isin(sid, large)
+    if sm.any() and large.size > 0:
+        keep = ~sm
+        lc_sid = np.unique(sid[keep])
+        lc = np.array([[ex[keep][sid[keep] == k].mean(), ey[keep][sid[keep] == k].mean()]
+                       for k in lc_sid])
+        j = _rdist(np.column_stack([ex[sm], ey[sm]]), lc).argmin(axis=1)
+        sid = sid.copy()
+        sid[sm] = lc_sid[j]
+
+    levels, inv, n_spots = np.unique(sid, return_inverse=True, return_counts=True)
+    units = pd.DataFrame({"unit": levels.astype(int),
+                          "x": np.bincount(inv, weights=df[x].to_numpy(float)) / n_spots,
+                          "y": np.bincount(inv, weights=df[y].to_numpy(float)) / n_spots})
+    units[cells] = np.round(np.bincount(inv, weights=df[cells].to_numpy(float))).astype(int)
+    if umi is not None:
+        units[umi] = np.bincount(inv, weights=df[umi].to_numpy(float))
+    units["n_spots"] = n_spots.astype(int)
+    units["area"] = n_spots * spot_area
+    for g in genes:
+        units[g] = np.round(np.bincount(inv, weights=df[g].to_numpy(float))).astype(int)
+    units.attrs["spot_unit"] = sid
+    return units
 
 
 # --------------------------------------------------------------------------- #
 # 2. Model compilation, initial values, fitting                               #
 # --------------------------------------------------------------------------- #
 
-def _stan_path(stan_file=None, vararea=False) -> Path:
+def _stan_path(stan_file=None, vararea=False, umi=False) -> Path:
     if stan_file is not None:
         p = Path(stan_file)
         if not p.exists():
             raise FileNotFoundError(f"Stan file not found: {p}")
         return p.resolve()
-    fname = "DenMark" + ("-vararea" if vararea else "") + ".stan"
+    fname = ("DenMark-vararea-umi.stan" if umi
+             else "DenMark" + ("-vararea" if vararea else "") + ".stan")
     for d in [STAN_DIR, _HERE / "stan"]:
         if d is not None and (Path(d) / fname).exists():
             return (Path(d) / fname).resolve()
@@ -452,7 +719,8 @@ def _cached_stan_file(path: Path) -> Path:
     return dest
 
 
-def compile_model(stan_file=None, vararea=False, force_compile=False) -> "CmdStanModel":
+def compile_model(stan_file=None, vararea=False, force_compile=False,
+                  umi=False) -> "CmdStanModel":
     """Compile (once per session) and return a DenMark CmdStanModel. The Stan
     file is copied to DENMARK_CACHE_DIR (default ~/.cache/denmark) and
     compiled there.
@@ -463,10 +731,13 @@ def compile_model(stan_file=None, vararea=False, force_compile=False) -> "CmdSta
         model with one area offset `log_grid_area` per grid cell (used with a
         tissue boundary).
     :param force_compile: recompile even if a compiled model is available.
+    :param umi: use DenMark-vararea-umi.stan, the variable-area model whose
+        expression exposure is the total count per grid cell (`log_umi`)
+        instead of the number of cells (see `offset` in prepare_data()).
     """
     if CmdStanModel is None:
         raise ImportError("cmdstanpy is required: pip install cmdstanpy")
-    path = str(_stan_path(stan_file, vararea))
+    path = str(_stan_path(stan_file, vararea, umi))
     if force_compile or path not in _MODEL_CACHE:
         _MODEL_CACHE[path] = CmdStanModel(stan_file=str(_cached_stan_file(Path(path))),
                                           force_compile=force_compile)
@@ -490,7 +761,10 @@ def make_init(stan_data, rho0=0.3) -> dict:
     y1 = np.asarray(stan_data["y1"]); y2 = np.asarray(stan_data["y2"])
     area = np.exp(np.resize(np.asarray(stan_data["log_grid_area"], float), y1.size))
     beta0 = float(np.log(max(y1.sum(), 1) / area.sum()))
-    beta1 = float(np.log(max(y2.sum(), 1) / (y1 + 0.05).sum()))
+    if stan_data.get("log_umi") is not None:          # expression per unit of total count
+        beta1 = float(np.log(max(y2.sum(), 1) / np.exp(np.asarray(stan_data["log_umi"], float)).sum()))
+    else:
+        beta1 = float(np.log(max(y2.sum(), 1) / (y1 + 0.05).sum()))
     ell = [float(stan_data["mrange"])] * 2
     base = dict(beta0=beta0, beta1=beta1, ell=ell,
                 betab1=[0.0] * mstar, betab2=[0.0] * mstar)
@@ -720,9 +994,15 @@ class DenMarkResult:
     def __repr__(self) -> str:
         nx, ny = self.info["grid_size"]
         b = self.info["basis"]
-        lines = [f"DenMark fit  |  gene {self.gene}",
-                 f"  grid {nx} x {ny} ({self.stan_data['n']} grids, {self.info['n_cells']} cells)"
-                 f"  |  basis {b}  |  boundfactor {self.info['boundfactor']:.2f}"]
+        head = f"DenMark fit  |  gene {self.gene}"
+        if self.info.get("offset") == "umi":
+            head += "  |  offset: total counts"
+        if self.info.get("units"):
+            size = f"  {self.stan_data['n']} units ({self.info['n_cells']} cells)"
+        else:
+            size = (f"  grid {nx} x {ny} ({self.stan_data['n']} grids, "
+                    f"{self.info['n_cells']} cells)")
+        lines = [head, size + f"  |  basis {b}  |  boundfactor {self.info['boundfactor']:.2f}"]
         s = self.summary()
         r = s.loc[s.variable == "Astar[2,1]"].iloc[0]
         lines.append(f"  rho (density-expression correlation): {r['mean']:.3f}  "
@@ -797,6 +1077,7 @@ def DenMark(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
             max_treedepth=10, seed=2024, refresh=400, inits=None, rho0=0.3,
             stan_file=None, output_dir=None, keep_fit=True,
             quiet=False, L1=None, L2=None, boundary=None, min_area_frac=0,
+            offset="cells", umi=None, units=False, cells="Y", area="area",
             **sample_kwargs) -> DenMarkResult:
     """Fit DenMark to one gene.
 
@@ -813,20 +1094,30 @@ def DenMark(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
     `stan_file` must then declare ``vector[n] log_grid_area``.
     `min_area_frac` is passed to prepare_data(). Without `boundary`, the
     whole bounding box is gridded with a common grid area.
+
+    `offset="umi"` with `umi=` (the column of total counts per cell) takes
+    the total count as the exposure of the expression counts, for sequencing
+    data, through DenMark-vararea-umi.stan; `units=True` fits pre-aggregated
+    units such as the super-grids from pool_visium(). See prepare_data().
     """
     _removed_args(sample_kwargs)
     prep = prepare_data(dataset, gene=gene, grid_size=grid_size, basis=basis,
                         boundfactor=boundfactor, bbox=bbox, L1=L1, L2=L2,
-                        boundary=boundary, min_area_frac=min_area_frac)
+                        boundary=boundary, min_area_frac=min_area_frac,
+                        offset=offset, umi=umi, units=units, cells=cells, area=area)
     sd = prep["stan_data"]
     if sd["y2"].sum() == 0:
         raise ValueError(f"Gene '{prep['info']['gene']}' has zero counts in the ROI.")
-    if stan_file is not None and prep["info"]["vararea"] and not any(
-            re.search(r"vector\[n\]\s*log_grid_area", line)
-            for line in Path(stan_file).read_text(errors="replace").splitlines()):
-        raise ValueError("With a tissue boundary the Stan model needs `vector[n] log_grid_area` "
-                         "(use the '-vararea' models).")
-    mod = compile_model(stan_file, vararea=prep["info"]["vararea"])
+    if stan_file is not None:
+        code = Path(stan_file).read_text(errors="replace").splitlines()
+        if (prep["info"]["vararea"] or offset == "umi") and not any(
+                re.search(r"vector\[n\]\s*log_grid_area", line) for line in code):
+            raise ValueError("With a tissue boundary, units or offset='umi' the Stan model needs "
+                             "`vector[n] log_grid_area` (use the '-vararea' models).")
+        if offset == "umi" and not any(re.search(r"vector\[n\]\s*log_umi", line) for line in code):
+            raise ValueError("With offset='umi' the Stan model needs `vector[n] log_umi` "
+                             "(use 'DenMark-vararea-umi.stan').")
+    mod = compile_model(stan_file, vararea=prep["info"]["vararea"], umi=offset == "umi")
     if inits is None:
         inits = make_init(sd, rho0=rho0)
     if output_dir is not None:
@@ -900,13 +1191,25 @@ def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
     n_jobs genes are fitted at the same time; every gene keeps its seed, so
     the results equal those of the sequential scan, and each fit also runs
     its chains in parallel, so a scan uses up to n_jobs * chains cores.
-    Further arguments (grid_size, basis, boundary, ...) go to DenMark()."""
+    Further arguments (grid_size, basis, boundary, ...) go to DenMark().
+    With offset="umi" or units=True, `data` also holds the columns they need
+    (`umi`; `cells` and `area`), which are passed to every fit and are not
+    scanned; by default, neither are `unit` and `n_spots` from pool_visium()."""
     _removed_args(kwargs)
     if not isinstance(n_jobs, (int, np.integer)) or isinstance(n_jobs, bool) or n_jobs < 1:
         raise ValueError("`n_jobs` must be a positive whole number.")
     data = pd.DataFrame(data)
+    units = bool(kwargs.get("units"))
+    extra = (([kwargs["umi"]] if kwargs.get("offset") == "umi" and kwargs.get("umi") is not None
+              else [])
+             + ([kwargs.get("cells", "Y"), kwargs.get("area", "area")] if units else []))
+    missing = [c for c in extra if c not in data.columns]
+    if missing:
+        raise ValueError(f"Missing column(s) in `data`: {', '.join(missing)}.")
+    cols = ["x", "y"] + extra
     if genes is None:
-        genes = [c for c in data.columns if c not in ("x", "y")]
+        skip = set(cols) | ({"unit", "n_spots"} if units else set())
+        genes = [c for c in data.columns if c not in skip]
     genes = [g for g in genes if g in data.columns]
     if not genes:
         raise ValueError("None of the requested genes are columns of `data`.")
@@ -919,7 +1222,7 @@ def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
         if fcache is not None and fcache.exists():
             return pd.read_csv(fcache).iloc[0].to_dict()
         try:
-            f2 = DenMark(data[["x", "y", g]], gene=g, keep_fit=False,
+            f2 = DenMark(data[list(dict.fromkeys(cols + [g]))], gene=g, keep_fit=False,
                          quiet=quiet, **kwargs)
             rho = f2.rho
             row = dict(gene=g, rho_mean=rho.mean(), rho_median=np.median(rho),
@@ -957,7 +1260,9 @@ def _parallel_map(one_gene, genes, n_jobs, kwargs):
     """Fit genes at the same time. Each fit runs CmdStan in its own processes,
     so threads suffice; the model is compiled once before they start, and
     every gene keeps its seed, so the results equal the sequential run."""
-    compile_model(kwargs.get("stan_file"), vararea=kwargs.get("boundary") is not None)
+    compile_model(kwargs.get("stan_file"),
+                  vararea=kwargs.get("boundary") is not None or bool(kwargs.get("units")),
+                  umi=kwargs.get("offset") == "umi")
     with ThreadPoolExecutor(max_workers=min(n_jobs, len(genes))) as pool:
         return list(pool.map(one_gene, genes))
 

@@ -8,7 +8,8 @@ denmark_model(
   stan_file = NULL,
   vararea = FALSE,
   force_recompile = FALSE,
-  quiet = TRUE
+  quiet = TRUE,
+  umi = FALSE
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ tissue boundary).}
 \item{force_recompile}{Recompile even if a compiled model is available.}
 
 \item{quiet}{Suppress the compiler output.}
+
+\item{umi}{Use \code{DenMark-vararea-umi.stan}, the variable-area model whose
+expression exposure is the total count per grid cell (\code{log_umi}) instead
+of the number of cells (see \code{offset} in \code{\link[=denmark_prepare]{denmark_prepare()}}).}
 }
 \value{
 A cmdstanr \code{CmdStanModel} object.

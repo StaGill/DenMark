@@ -55,8 +55,19 @@ matern32 <- function(d, sigma = 1, rho) {
   u / sqrt(3)
 }
 
-# Standardise the input data frame to columns x, y, gene.
-.denmark_xyz <- function(dataset, gene = NULL, x = "x", y = "y") {
+# Largest distance between the rows of a two-column matrix (the diameter of
+# the point set). The farthest pair lies on the convex hull, so distances are
+# computed between hull vertices only, which keeps large grids cheap.
+.denmark_max_dist <- function(coords) {
+  coords <- as.matrix(coords)
+  if (nrow(coords) < 2) return(0)
+  hull <- coords[grDevices::chull(coords[, 1], coords[, 2]), , drop = FALSE]
+  max(stats::dist(hull))
+}
+
+# Standardise the input data frame to columns x, y, gene (and umi, the total
+# count of each cell, when `umi` names a column).
+.denmark_xyz <- function(dataset, gene = NULL, x = "x", y = "y", umi = NULL) {
   dataset <- as.data.frame(dataset)
   if (!all(c(x, y) %in% names(dataset))) {
     if (ncol(dataset) < 3)
@@ -66,7 +77,7 @@ matern32 <- function(d, sigma = 1, rho) {
     names(dataset)[1:2] <- c(x, y)
   }
   if (is.null(gene)) {
-    others <- setdiff(names(dataset), c(x, y))
+    others <- setdiff(names(dataset), c(x, y, umi))
     if (length(others) < 1) stop("No expression column found in `dataset`.")
     gene <- others[1]
   }
@@ -77,12 +88,19 @@ matern32 <- function(d, sigma = 1, rho) {
   out <- data.frame(x = as.numeric(dataset[[x]]),
                     y = as.numeric(dataset[[y]]),
                     gene = as.numeric(dataset[[gene]]))
+  if (!is.null(umi)) {
+    if (!umi %in% names(dataset))
+      stop("Column '", umi, "' (total counts per cell) is not a column of `dataset`.")
+    if (!is.numeric(dataset[[umi]])) stop("Column '", umi, "' is not numeric.")
+    out$umi <- as.numeric(dataset[[umi]])
+  }
   ok <- stats::complete.cases(out)
   if (any(!ok)) {
     warning(sum(!ok), " cell(s) with missing coordinates/expression removed.", call. = FALSE)
     out <- out[ok, , drop = FALSE]
   }
   if (any(out$gene < 0)) stop("Expression values must be non-negative counts.")
+  if (!is.null(umi) && any(out$umi < 0)) stop("Total counts in '", umi, "' must be non-negative.")
   attr(out, "gene") <- gene
   out
 }

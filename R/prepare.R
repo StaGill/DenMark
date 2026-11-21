@@ -129,6 +129,9 @@ denmark_alpha_shape <- function(x, y, alpha = NULL, alpha_mult = 3,
 #' @param boundary Optional tissue polygon from [denmark_alpha_shape()]. The
 #'   grid then spans the tissue, and every grid cell gets its area inside the
 #'   tissue (`area`) and a `type`: interior, boundary or exterior.
+#' @param umi Optional column with the total count of each cell (all genes);
+#'   its sum over the cells of each grid cell is returned as `T` in `grid`,
+#'   the exposure used with `offset = "umi"` in [denmark_prepare()].
 #' @return A list. The vectors are ordered with x varying fastest, that is
 #'   `grid_index = i + (j - 1) * nx`, identical to `as.vector(Ymat)`. The first
 #'   three elements keep the order of the original DenMark function, so
@@ -139,7 +142,8 @@ denmark_alpha_shape <- function(x, y, alpha = NULL, alpha_mult = 3,
 #'   \item{Mmat}{nx x ny matrix of summed expression.}
 #'   \item{grid}{Data frame with the columns `grid_index`, `i`, `j`, `x`, `y`
 #'     (centroids), `Y`, `M`, `area` (area inside the tissue; the full grid
-#'     cell area without a boundary) and `type`.}
+#'     cell area without a boundary) and `type`, and `T` (summed total counts)
+#'     when `umi` is given.}
 #'   \item{bbox, step, grid_area, grid_size, gene, boundary}{Bounding box,
 #'     grid steps `c(dx, dy)`, area of one full grid cell, `c(nx, ny)`, the
 #'     gene name and the tissue polygon (`NULL` without one).}
@@ -156,11 +160,11 @@ denmark_alpha_shape <- function(x, y, alpha = NULL, alpha_mult = 3,
 #'                   boundary = tissue)
 #' table(gb$grid$type)
 buildgridpp <- function(grid_size, dataset, gene = NULL, bbox = NULL,
-                        boundary = NULL) {
+                        boundary = NULL, umi = NULL) {
   if (inherits(boundary, "sfc") && length(boundary) > 1)
     stop("`boundary` has ", length(boundary), " features; combine them into one ",
          "(multi)polygon first, e.g. with sf::st_union(boundary).")
-  dat <- .denmark_xyz(dataset, gene)
+  dat <- .denmark_xyz(dataset, gene, umi = umi)
   gene <- attr(dat, "gene")
   dims <- .grid_dims(grid_size); nx <- dims[1]; ny <- dims[2]
   bbox_from_boundary <- is.null(bbox) && !is.null(boundary)
@@ -203,6 +207,12 @@ buildgridpp <- function(grid_size, dataset, gene = NULL, bbox = NULL,
                      x = unname(bb["xmin"]) + (gi - 0.5) * dx,
                      y = unname(bb["ymin"]) + (gj - 0.5) * dy,
                      Y = Y, M = M, area = dx * dy, type = "interior")
+  if (!is.null(umi)) {                 # total counts per grid cell (exposure for offset = "umi")
+    Tg <- numeric(nx * ny)
+    st <- rowsum(dat$umi, idx)
+    Tg[as.integer(rownames(st))] <- st[, 1]
+    grid$T <- Tg
+  }
   if (!is.null(boundary)) {
     ga <- .denmark_grid_area(grid, c(dx, dy), boundary)
     grid$area <- ga$area
@@ -276,7 +286,12 @@ denmark_hsgp_indices <- function(basis) {
 #' `[-L1, L1] x [-L2, L2]`; the grid centroids are the HSGP input coordinates
 #' and the HSGP domain is `boundfactor * c(L1, L2)`. With a tissue
 #' `boundary`, the grid cells outside the tissue are removed first and the
-#' region of interest is that of the retained grid.
+#' region of interest is that of the retained grid. The scale of the
+#' inverse-gamma prior on the length-scales, `mrange`, is the largest distance
+#' between the retained grid centroids divided by `2 * 2.75`, so that the
+#' prior mean puts the practical range of the Matern-3/2 correlation (the
+#' distance at which it falls to 0.05) at half that distance, as in the
+#' analyses of the paper.
 #'
 #' @param dataset Data frame with columns `x`, `y` and the expression
 #'   column(s), one row per cell.
@@ -294,17 +309,39 @@ denmark_hsgp_indices <- function(basis) {
 #'   the variable-area model `DenMark-vararea.stan` is used.
 #' @param min_area_frac Drop boundary grid cells whose area inside the tissue
 #'   is below this fraction of a full grid cell (default 0: keep all).
+#' @param offset Exposure of the expression counts. `"cells"` (the default)
+#'   uses the number of focal cells in each grid cell, `log(Y + 0.05)`, so
+#'   that rho describes expression per cell. `"umi"` uses the total count of
+#'   the focal cells in each grid cell, `log(T + 0.05)` with `T` summed from
+#'   the column `umi`, so that rho describes the share of the transcriptome
+#'   taken by the gene; it suits sequencing data, whose depth varies across
+#'   the capture area. The two estimands differ and are not interchangeable.
+#'   `"umi"` uses the model `DenMark-vararea-umi.stan`.
+#' @param umi With `offset = "umi"`, the column of `dataset` holding the total
+#'   count of each cell (or, with `units = TRUE`, of each unit).
+#' @param units If `TRUE`, each row of `dataset` is already a modelling unit
+#'   (for example a super-grid from [denmark_pool_visium()]) with the columns
+#'   `x`, `y`, `cells`, `area`, the expression column and, for
+#'   `offset = "umi"`, `umi`; no grid is built and `grid_size`, `bbox`,
+#'   `boundary` and `min_area_frac` are ignored. As in the spot-level
+#'   analysis of the paper, the HSGP half-widths are `boundfactor` times the
+#'   largest centered coordinate, and `mrange` uses the largest distance
+#'   between units.
+#' @param cells,area With `units = TRUE`, the columns holding the number of
+#'   focal cells (or nuclei) and the area of each unit.
 #' @return A list with the elements
 #'   \item{stan_data}{Data list for the Stan models: `n`, `y1` (cell counts),
 #'     `y2` (summed expression), `d`, `mstar`, `coords` (centered grid
 #'     centroids), `log_grid_area` (one value, or one per grid cell with a
-#'     boundary), `mrange`, `indices`, `L` and `is_centerted_PHI`.}
+#'     boundary or with `offset = "umi"`), `mrange`, `indices`, `L`,
+#'     `is_centerted_PHI` and, with `offset = "umi"`, `log_umi`.}
 #'   \item{grid}{The grid from [buildgridpp()] (without the exterior grid
 #'     cells when a boundary is given) with the centered coordinates `cx` and
 #'     `cy`.}
 #'   \item{info}{Gene, grid geometry, HSGP settings, number of cells, the
-#'     count matrices `Ymat` and `Mmat`, and for the tissue boundary
-#'     `vararea`, `boundary`, `n_grid_total`, `n_interior` and `n_boundary`.}
+#'     count matrices `Ymat` and `Mmat`, for the tissue boundary `vararea`,
+#'     `boundary`, `n_grid_total`, `n_interior` and `n_boundary`, and
+#'     `offset`, `umi` and `units`.}
 #' @export
 #' @examples
 #' toy <- denmark_toy_data()
@@ -319,9 +356,19 @@ denmark_hsgp_indices <- function(basis) {
 #' summary(exp(prep_b$stan_data$log_grid_area))
 denmark_prepare <- function(dataset, gene = NULL, grid_size = 10, basis = 25,
                             boundfactor = 1.5, bbox = NULL, L1 = NULL, L2 = NULL,
-                            boundary = NULL, min_area_frac = 0) {
+                            boundary = NULL, min_area_frac = 0,
+                            offset = c("cells", "umi"), umi = NULL,
+                            units = FALSE, cells = "Y", area = "area") {
   if (boundfactor < 1) stop("`boundfactor` must be >= 1.")
-  g <- buildgridpp(grid_size, dataset, gene = gene, bbox = bbox, boundary = boundary)
+  offset <- match.arg(offset)
+  if (offset == "umi" && is.null(umi))
+    stop("`offset = \"umi\"` needs `umi =`, the column with the total count of each cell.")
+  if (isTRUE(units))
+    return(.denmark_prepare_units(dataset, gene = gene, basis = basis,
+                                  boundfactor = boundfactor, offset = offset,
+                                  umi = umi, cells = cells, area = area))
+  g <- buildgridpp(grid_size, dataset, gene = gene, bbox = bbox, boundary = boundary,
+                   umi = if (offset == "umi") umi)
   bb <- g$bbox
   vararea <- !is.null(boundary)
   grid <- g$grid
@@ -347,7 +394,7 @@ denmark_prepare <- function(dataset, gene = NULL, grid_size = 10, basis = 25,
   coords <- cbind(grid$x - centre["x"], grid$y - centre["y"])
   dimnames(coords) <- NULL
   S <- denmark_hsgp_indices(basis)
-  dmax <- sqrt(diff(range(coords[, 1]))^2 + diff(range(coords[, 2]))^2)
+  dmax <- .denmark_max_dist(coords)          # largest distance between grid centroids
 
   stan_data <- list(
     n = nrow(coords),
@@ -356,11 +403,15 @@ denmark_prepare <- function(dataset, gene = NULL, grid_size = 10, basis = 25,
     d = 2L,
     mstar = nrow(S),                         # total number of basis functions
     coords = coords,                         # centred grid centroids
-    log_grid_area = if (vararea) log(grid$area) else log(g$grid_area),  # area offset
+    log_grid_area = if (vararea) log(grid$area)          # area offset
+                    else if (offset == "umi") rep(log(g$grid_area), nrow(grid))
+                    else log(g$grid_area),
     mrange = dmax / (2 * 2.75),              # scale of the inv-gamma prior on ell
     indices = S,
     L = as.numeric(boundfactor * half),      # HSGP domain half-widths
     is_centerted_PHI = 0L)
+  if (offset == "umi")
+    stan_data$log_umi <- log(grid$T + 0.05)  # expression exposure: total counts
 
   grid$cx <- coords[, 1]; grid$cy <- coords[, 2]
   list(stan_data = stan_data,
@@ -373,5 +424,69 @@ denmark_prepare <- function(dataset, gene = NULL, grid_size = 10, basis = 25,
                    vararea = vararea, boundary = boundary,
                    n_grid_total = nrow(g$grid),
                    n_interior = sum(grid$type == "interior"),
-                   n_boundary = sum(grid$type == "boundary")))
+                   n_boundary = sum(grid$type == "boundary"),
+                   offset = offset, umi = umi, units = FALSE))
+}
+
+
+# Stan data for pre-aggregated units (one row per unit, no grid), following
+# the spot-level Visium analysis of the paper: coordinates centered at the
+# middle of their range, HSGP half-widths `boundfactor` times the largest
+# centered coordinate, and the length-scale prior scaled by the largest
+# distance between units.
+.denmark_prepare_units <- function(dataset, gene, basis, boundfactor, offset,
+                                   umi, cells, area) {
+  d <- as.data.frame(dataset)
+  if (is.null(gene)) stop("With `units = TRUE`, pass the expression column as `gene =`.")
+  need <- unique(c("x", "y", cells, area, gene, if (offset == "umi") umi))
+  miss <- setdiff(need, names(d))
+  if (length(miss)) stop("Missing column(s) in the units: ", paste(miss, collapse = ", "), ".")
+  for (v in need) if (!is.numeric(d[[v]])) stop("Column '", v, "' is not numeric.")
+  ok <- stats::complete.cases(d[, need])
+  if (any(!ok)) {
+    warning(sum(!ok), " unit(s) with missing values removed.", call. = FALSE)
+    d <- d[ok, , drop = FALSE]
+  }
+  if (nrow(d) < 3) stop("Fewer than three units.")
+  if (any(d[[area]] <= 0)) stop("Unit areas must be positive.")
+  for (v in c(cells, gene))
+    if (any(d[[v]] < 0) || any(abs(d[[v]] - round(d[[v]])) > 1e-8))
+      stop("Column '", v, "' must hold non-negative integer counts.")
+
+  centre <- c(x = mean(range(d$x)), y = mean(range(d$y)))
+  coords <- cbind(d$x - centre[["x"]], d$y - centre[["y"]])
+  dimnames(coords) <- NULL
+  half <- c(L1 = max(abs(coords[, 1])), L2 = max(abs(coords[, 2])))
+  S <- denmark_hsgp_indices(basis)
+  dmax <- .denmark_max_dist(coords)
+  stan_data <- list(
+    n = nrow(coords),
+    y1 = as.integer(round(d[[cells]])),
+    y2 = as.integer(round(d[[gene]])),
+    d = 2L,
+    mstar = nrow(S),
+    coords = coords,
+    log_grid_area = log(d[[area]]),
+    mrange = dmax / (2 * 2.75),
+    indices = S,
+    L = as.numeric(boundfactor * half),
+    is_centerted_PHI = 0L)
+  if (offset == "umi") stan_data$log_umi <- log(d[[umi]] + 0.05)
+
+  grid <- data.frame(grid_index = seq_len(nrow(d)), i = NA_integer_, j = NA_integer_,
+                     x = d$x, y = d$y, Y = stan_data$y1, M = stan_data$y2,
+                     area = d[[area]], type = "unit")
+  if (offset == "umi") grid$T <- d[[umi]]
+  grid$cx <- coords[, 1]; grid$cy <- coords[, 2]
+  list(stan_data = stan_data,
+       grid = grid,
+       info = list(gene = gene, grid_size = c(nx = NA_integer_, ny = NA_integer_),
+                   step = c(dx = NA_real_, dy = NA_real_), grid_area = NA_real_,
+                   bbox = c(xmin = min(d$x), xmax = max(d$x), ymin = min(d$y), ymax = max(d$y)),
+                   centre = centre, L1 = half[["L1"]], L2 = half[["L2"]], basis = basis,
+                   boundfactor = boundfactor, max_dist = dmax,
+                   n_cells = sum(stan_data$y1), Ymat = NULL, Mmat = NULL,
+                   vararea = TRUE, boundary = NULL,
+                   n_grid_total = nrow(d), n_interior = nrow(d), n_boundary = 0L,
+                   offset = offset, umi = umi, units = TRUE))
 }

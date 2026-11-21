@@ -7,6 +7,7 @@ fits the same Stan model through cmdstanpy. The workflow maps to:
 
   tissue boundary from all cells         alpha_shape()
   grid the cells, build the Stan data    buildgridpp(), prepare_data()
+  pool Visium spots into super-grids     pool_visium(), then prepare_data(units=True)
   fit one gene                           DenMark()
   scan genes and call DCGs               scan_genes()
   summaries, latent fields, decay        DenMarkResult.summary(), .fields(), .decay()

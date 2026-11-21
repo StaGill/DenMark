@@ -2,12 +2,12 @@
 ## 2. Model compilation, initial values, fitting                             ##
 ## ------------------------------------------------------------------------- ##
 
-.denmark_stan_path <- function(stan_file = NULL, vararea = FALSE) {
+.denmark_stan_path <- function(stan_file = NULL, vararea = FALSE, umi = FALSE) {
   if (!is.null(stan_file)) {
     if (!file.exists(stan_file)) stop("Stan file not found: ", stan_file)
     return(normalizePath(stan_file))
   }
-  fname <- paste0("DenMark", if (vararea) "-vararea", ".stan")
+  fname <- if (umi) "DenMark-vararea-umi.stan" else paste0("DenMark", if (vararea) "-vararea", ".stan")
   dirs <- unique(c(getOption("denmark.stan_dir"),
                    system.file("stan", package = "DenMark")))
   for (d in dirs) {
@@ -35,14 +35,17 @@
 #'   tissue boundary).
 #' @param force_recompile Recompile even if a compiled model is available.
 #' @param quiet Suppress the compiler output.
+#' @param umi Use `DenMark-vararea-umi.stan`, the variable-area model whose
+#'   expression exposure is the total count per grid cell (`log_umi`) instead
+#'   of the number of cells (see `offset` in [denmark_prepare()]).
 #' @return A cmdstanr `CmdStanModel` object.
 #' @export
 #' @examplesIf requireNamespace("cmdstanr", quietly = TRUE) && !is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE))
 #' mod <- denmark_model()
 #' mod$exe_file()
 denmark_model <- function(stan_file = NULL, vararea = FALSE, force_recompile = FALSE,
-                          quiet = TRUE) {
-  path <- .denmark_stan_path(stan_file, vararea)
+                          quiet = TRUE, umi = FALSE) {
+  path <- .denmark_stan_path(stan_file, vararea, umi)
   if (!force_recompile && !is.null(.denmark_env$models[[path]]))
     return(.denmark_env$models[[path]])
   cache <- NULL
@@ -86,7 +89,9 @@ denmark_init <- function(stan_data, rho0 = 0.3) {
   y1 <- stan_data$y1; y2 <- stan_data$y2
   area <- exp(rep_len(stan_data$log_grid_area, length(y1)))
   beta0 <- log(max(sum(y1), 1) / sum(area))
-  beta1 <- log(max(sum(y2), 1) / sum(y1 + 0.05))
+  beta1 <- if (!is.null(stan_data$log_umi))   # expression per unit of total count
+    log(max(sum(y2), 1) / sum(exp(stan_data$log_umi)))
+  else log(max(sum(y2), 1) / sum(y1 + 0.05))
   ell <- rep(stan_data$mrange, 2)
   function() list(Astar = matrix(c(1, rho0, 0, sqrt(1 - rho0^2)), 2, 2),
                   sigma = c(1, 0.5), beta0 = beta0, beta1 = beta1, ell = ell,
@@ -142,6 +147,12 @@ denmark_init <- function(stan_data, rho0 = 0.3) {
 #'   cells outside the tissue are dropped and boundary grid cells use their
 #'   clipped area (variable-area model).
 #' @param min_area_frac See [denmark_prepare()].
+#' @param offset,umi Exposure of the expression counts: `"cells"` (the number
+#'   of cells, the default) or `"umi"` (the total count from the column `umi`,
+#'   for sequencing data). See [denmark_prepare()].
+#' @param units,cells,area Fit pre-aggregated units, such as the super-grids
+#'   from [denmark_pool_visium()], instead of gridding cells. See
+#'   [denmark_prepare()].
 #' @param ... For `DenMark()`, further arguments passed to `$sample()`;
 #'   ignored by `print()`.
 #' @return An object of class `denmark`: a list with the cmdstanr fit
@@ -171,21 +182,31 @@ DenMark <- function(dataset, gene = NULL,
                     seed = 2024, refresh = 400, init = NULL, rho0 = 0.3,
                     stan_file = NULL, output_dir = NULL,
                     keep_fit = TRUE, quiet = FALSE, L1 = NULL, L2 = NULL,
-                    boundary = NULL, min_area_frac = 0, ...) {
+                    boundary = NULL, min_area_frac = 0,
+                    offset = c("cells", "umi"), umi = NULL,
+                    units = FALSE, cells = "Y", area = "area", ...) {
   .denmark_removed_args(...)
+  offset <- match.arg(offset)
   prep <- denmark_prepare(dataset, gene = gene, grid_size = grid_size,
                           basis = basis, boundfactor = boundfactor, bbox = bbox,
                           L1 = L1, L2 = L2, boundary = boundary,
-                          min_area_frac = min_area_frac)
+                          min_area_frac = min_area_frac, offset = offset, umi = umi,
+                          units = units, cells = cells, area = area)
   sd <- prep$stan_data
   if (sum(sd$y2) == 0) stop("Gene '", prep$info$gene, "' has zero counts in the ROI.")
-  if (!is.null(stan_file) && prep$info$vararea &&
-      !any(grepl("vector\\[n\\][[:space:]]*log_grid_area",
-                 readLines(stan_file, warn = FALSE))))
-    stop("With a tissue boundary the Stan model needs `vector[n] log_grid_area` ",
-         "(use the '-vararea' models).")
+  if (!is.null(stan_file)) {
+    code <- readLines(stan_file, warn = FALSE)
+    if ((prep$info$vararea || offset == "umi") &&
+        !any(grepl("vector\\[n\\][[:space:]]*log_grid_area", code)))
+      stop("With a tissue boundary, units or `offset = \"umi\"` the Stan model needs ",
+           "`vector[n] log_grid_area` (use the '-vararea' models).")
+    if (offset == "umi" && !any(grepl("vector\\[n\\][[:space:]]*log_umi", code)))
+      stop("With `offset = \"umi\"` the Stan model needs `vector[n] log_umi` ",
+           "(use 'DenMark-vararea-umi.stan').")
+  }
 
-  mod <- denmark_model(stan_file = stan_file, vararea = prep$info$vararea)
+  mod <- denmark_model(stan_file = stan_file, vararea = prep$info$vararea,
+                       umi = offset == "umi")
   if (is.null(init)) init <- denmark_init(sd, rho0 = rho0)
   if (!is.null(output_dir)) dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 

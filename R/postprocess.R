@@ -263,10 +263,17 @@ denmark_check_hsgp <- function(obj, warn = TRUE) {
 #' @param digits Number of significant digits in the printed summary table.
 #' @export
 print.denmark <- function(x, digits = 3, ...) {
-  cat(sprintf("DenMark fit  |  gene %s\n", x$gene))
-  cat(sprintf("  grid %d x %d (%d grids, %d cells)  |  basis %s  |  boundfactor %.2f\n",
-              x$info$grid_size[1], x$info$grid_size[2], x$stan_data$n,
-              x$info$n_cells, paste(x$info$basis, collapse = "x"), x$info$boundfactor))
+  cat(sprintf("DenMark fit  |  gene %s%s\n", x$gene,
+              if (identical(x$info$offset, "umi")) "  |  offset: total counts" else ""))
+  if (isTRUE(x$info$units)) {
+    cat(sprintf("  %d units (%d cells)  |  basis %s  |  boundfactor %.2f\n",
+                x$stan_data$n, x$info$n_cells, paste(x$info$basis, collapse = "x"),
+                x$info$boundfactor))
+  } else {
+    cat(sprintf("  grid %d x %d (%d grids, %d cells)  |  basis %s  |  boundfactor %.2f\n",
+                x$info$grid_size[1], x$info$grid_size[2], x$stan_data$n,
+                x$info$n_cells, paste(x$info$basis, collapse = "x"), x$info$boundfactor))
+  }
   s <- x$summary
   r <- s[s$variable == "Astar[2,1]", ]
   cat(sprintf("  rho (density-expression correlation): %.3f  [95%% CrI %.3f, %.3f]\n",

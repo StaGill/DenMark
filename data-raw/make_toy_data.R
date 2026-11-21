@@ -12,6 +12,11 @@
 #   python/tests/data/toy_stan_data_boundary.json
 #       the same with the alpha-shape tissue boundary of all cells, with the
 #       alpha, the tissue area and the grid areas and types
+#   python/tests/data/toy_stan_data_umi.json
+#       the same as toy_stan_data.json with offset = "umi"
+#   python/tests/data/toy_visium_units.json
+#       Visium-like spots, their seven-spot pools from denmark_pool_visium()
+#       and the Stan data of the pools (units = TRUE, offset = "umi")
 # Python's results are compared with these in the parity tests.
 #
 # The analyzed cell type ("Tumor") carries three genes with known
@@ -57,6 +62,32 @@ write_fixture(list(alpha = attr(tissue, "alpha"),
                    stan_data = prep_b$stan_data),
               "python/tests/data/toy_stan_data_boundary.json")
 
+# Total-count offset: the first call with offset = "umi", for a per-cell total
+# count made of the three genes and 20 counts for the rest of the panel
+tumor_u <- transform(tumor, UMI = 20 + geneA + geneB + geneC)
+prep_u <- denmark_prepare(tumor_u, gene = "geneA", grid_size = 10, basis = 10,
+                          boundfactor = 1.5, offset = "umi", umi = "UMI")
+write_fixture(prep_u$stan_data, "python/tests/data/toy_stan_data_umi.json")
+
+# Seven-spot pooling: Visium-like spots (pitch 100) in an elliptical section,
+# pooled and prepared as units with the total-count offset
+set.seed(7)
+lat <- expand.grid(i = 0:21, j = 0:19)
+spots <- data.frame(x = 100 * (lat$i + 0.5 * (lat$j %% 2)),
+                    y = round(50 * sqrt(3) * lat$j, 6))
+spots <- spots[((spots$x - 1050) / 1000)^2 + ((spots$y - 820) / 700)^2 < 1, ]
+rownames(spots) <- NULL
+spots$Y <- stats::rpois(nrow(spots), 6)
+spots$UMI <- stats::rpois(nrow(spots), 4000)
+spots$geneA <- stats::rpois(nrow(spots), 2)
+units <- denmark_pool_visium(spots, genes = "geneA")
+prep_v <- denmark_prepare(units, gene = "geneA", basis = 6, boundfactor = 1.5,
+                          units = TRUE, offset = "umi", umi = "UMI")
+write_fixture(list(spots = spots, n_spots = units$n_spots,
+                   spot_unit = attr(units, "spot_unit"), stan_data = prep_v$stan_data),
+              "python/tests/data/toy_visium_units.json")
+
 message("Wrote ", nrow(toy), " cells (", nrow(tumor), " Tumor) to ",
-        "inst/extdata/denmark_toy.csv.gz and the geneA Stan data, without and ",
-        "with the tissue boundary, to python/tests/data/")
+        "inst/extdata/denmark_toy.csv.gz, and the geneA Stan data (without and ",
+        "with the tissue boundary, with the total-count offset, and for pooled ",
+        "Visium-like spots) to python/tests/data/")

@@ -52,3 +52,28 @@ def test_parallel_scan_resumes_from_save_dir(fake_fits, tumor, tmp_path):
     pd.testing.assert_series_equal(
         again.set_index("gene").loc[GENES[:2], "rho_mean"],
         first.set_index("gene").loc[GENES[:2], "rho_mean"])
+
+
+def test_scan_keeps_the_offset_and_unit_columns(monkeypatch):
+    seen, compiled = {}, []
+
+    def fake(dataset, gene=None, **kwargs):
+        seen[gene] = list(dataset.columns)
+        return _FakeFit(dataset, gene)
+
+    monkeypatch.setattr(dm.core, "DenMark", fake)
+    monkeypatch.setattr(dm.core, "compile_model", lambda *args, **kwargs: compiled.append(kwargs))
+    cells = pd.DataFrame({"x": [0.0, 1.0, 2.0], "y": [0.0, 1.0, 0.0], "UMI": [10.0, 12.0, 9.0],
+                          "geneA": [1, 2, 0], "geneB": [0, 1, 1]})
+    res = dm.scan_genes(cells, offset="umi", umi="UMI", verbose=False, n_jobs=2)
+    assert sorted(res["gene"]) == ["geneA", "geneB"]
+    assert seen["geneA"] == ["x", "y", "UMI", "geneA"]
+    assert compiled[-1]["umi"] is True
+    units = pd.DataFrame({"unit": [1, 2, 3], "x": [0.0, 1.0, 2.0], "y": [0.0, 1.0, 0.0],
+                          "Y": [3, 5, 2], "UMI": [10.0, 12.0, 9.0], "n_spots": [7, 7, 4],
+                          "area": [1.0, 1.0, 0.6], "geneA": [1, 2, 0]})
+    res = dm.scan_genes(units, units=True, offset="umi", umi="UMI", verbose=False)
+    assert list(res["gene"]) == ["geneA"]
+    assert seen["geneA"] == ["x", "y", "UMI", "Y", "area", "geneA"]
+    with pytest.raises(ValueError, match="Missing column"):
+        dm.scan_genes(cells, units=True, verbose=False)

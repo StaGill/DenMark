@@ -4,7 +4,14 @@
 \alias{buildgridpp}
 \title{Discretize cell locations and expression on a regular grid}
 \usage{
-buildgridpp(grid_size, dataset, gene = NULL, bbox = NULL, boundary = NULL)
+buildgridpp(
+  grid_size,
+  dataset,
+  gene = NULL,
+  bbox = NULL,
+  boundary = NULL,
+  umi = NULL
+)
 }
 \arguments{
 \item{grid_size}{Number of grid cells per axis, or \code{c(nx, ny)}.}
@@ -22,6 +29,10 @@ outside the box are dropped.}
 \item{boundary}{Optional tissue polygon from \code{\link[=denmark_alpha_shape]{denmark_alpha_shape()}}. The
 grid then spans the tissue, and every grid cell gets its area inside the
 tissue (\code{area}) and a \code{type}: interior, boundary or exterior.}
+
+\item{umi}{Optional column with the total count of each cell (all genes);
+its sum over the cells of each grid cell is returned as \code{T} in \code{grid},
+the exposure used with \code{offset = "umi"} in \code{\link[=denmark_prepare]{denmark_prepare()}}.}
 }
 \value{
 A list. The vectors are ordered with x varying fastest, that is
@@ -34,7 +45,8 @@ three elements keep the order of the original DenMark function, so
 \item{Mmat}{nx x ny matrix of summed expression.}
 \item{grid}{Data frame with the columns \code{grid_index}, \code{i}, \code{j}, \code{x}, \code{y}
 (centroids), \code{Y}, \code{M}, \code{area} (area inside the tissue; the full grid
-cell area without a boundary) and \code{type}.}
+cell area without a boundary) and \code{type}, and \code{T} (summed total counts)
+when \code{umi} is given.}
 \item{bbox, step, grid_area, grid_size, gene, boundary}{Bounding box,
 grid steps \code{c(dx, dy)}, area of one full grid cell, \code{c(nx, ny)}, the
 gene name and the tissue polygon (\code{NULL} without one).}

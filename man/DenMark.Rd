@@ -30,6 +30,11 @@ DenMark(
   L2 = NULL,
   boundary = NULL,
   min_area_frac = 0,
+  offset = c("cells", "umi"),
+  umi = NULL,
+  units = FALSE,
+  cells = "Y",
+  area = "area",
   ...
 )
 
@@ -77,6 +82,14 @@ cells outside the tissue are dropped and boundary grid cells use their
 clipped area (variable-area model).}
 
 \item{min_area_frac}{See \code{\link[=denmark_prepare]{denmark_prepare()}}.}
+
+\item{offset, umi}{Exposure of the expression counts: \code{"cells"} (the number
+of cells, the default) or \code{"umi"} (the total count from the column \code{umi},
+for sequencing data). See \code{\link[=denmark_prepare]{denmark_prepare()}}.}
+
+\item{units, cells, area}{Fit pre-aggregated units, such as the super-grids
+from \code{\link[=denmark_pool_visium]{denmark_pool_visium()}}, instead of gridding cells. See
+\code{\link[=denmark_prepare]{denmark_prepare()}}.}
 
 \item{...}{For \code{DenMark()}, further arguments passed to \verb{$sample()};
 ignored by \code{print()}.}
