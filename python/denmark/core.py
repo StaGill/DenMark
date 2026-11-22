@@ -906,7 +906,9 @@ class DenMarkResult:
     def fields(self, probs: Optional[Sequence[float]] = None) -> pd.DataFrame:
         """Latent-field decomposition per grid cell (posterior means):
         eta1 = beta0 + a11 w1, a11w1, eta2 = beta1 + a21 w1 + a22 w2, a21w1,
-        a22w2; plus log_lambda1 = log|g| + eta1, log_lambda2 = log(Y+0.05) + eta2."""
+        a22w2; plus log_lambda1 = log|g| + eta1, log_lambda2 = log(Y+0.05) + eta2,
+        or log(T+0.05) + eta2 with offset="umi" (eta2 is then the log expression per
+        unit of total count)."""
         if self.fit is None:
             raise RuntimeError("fields() needs the fit (use keep_fit=True).")
         W1 = self.fit.stan_variable("w1")          # (draws, n), chain-major
@@ -922,7 +924,9 @@ class DenMarkResult:
             for p in (probs or []):
                 out[f"{nm}_q{p * 100:g}"] = np.quantile(comp[nm], p, axis=0)
         out["log_lambda1"] = self.stan_data["log_grid_area"] + out["eta1"]
-        out["log_lambda2"] = np.log(out["Y"] + 0.05) + out["eta2"]
+        expo = (np.asarray(self.stan_data["log_umi"], float)
+                if self.stan_data.get("log_umi") is not None else np.log(out["Y"] + 0.05))
+        out["log_lambda2"] = expo + out["eta2"]
         return out
 
     def decay(self, distances=None, probs=(0.025, 0.975), threshold=0.05) -> dict:
@@ -1340,16 +1344,23 @@ def _add_boundary(ax, boundary, color="black"):
 
 def _tile(ax, grid, values, title, vmin=None, vmax=None, cmap="magma", boundary=None):
     import matplotlib.pyplot as plt
-    i, j = grid["i"].to_numpy(int), grid["j"].to_numpy(int)
     x, y = grid["x"].to_numpy(float), grid["y"].to_numpy(float)
-    # grid cells may be missing (outside the tissue); they stay empty
-    Z = np.full((np.ptp(j) + 1, np.ptp(i) + 1), np.nan)    # rows = y, x fastest
-    Z[j - j.min(), i - i.min()] = np.asarray(values, float)
-    dx = np.ptp(x) / np.ptp(i) if np.ptp(i) > 0 else 1.0
-    dy = np.ptp(y) / np.ptp(j) if np.ptp(j) > 0 else 1.0
-    ext = [x.min() - dx / 2, x.max() + dx / 2, y.min() - dy / 2, y.max() + dy / 2]
-    im = ax.imshow(Z, origin="lower", extent=ext, cmap=cmap, vmin=vmin, vmax=vmax,
-                   interpolation="nearest")
+    if grid["i"].isna().all():
+        # pre-aggregated units (units=True) have no grid indices: one point per unit
+        im = ax.scatter(x, y, c=np.asarray(values, float), cmap=cmap, vmin=vmin, vmax=vmax,
+                        s=float(np.clip(3000 / len(x), 4, 60)), edgecolors="0.2",
+                        linewidths=0.2)
+        ax.set_aspect("equal")
+    else:
+        i, j = grid["i"].to_numpy(int), grid["j"].to_numpy(int)
+        # grid cells may be missing (outside the tissue); they stay empty
+        Z = np.full((np.ptp(j) + 1, np.ptp(i) + 1), np.nan)    # rows = y, x fastest
+        Z[j - j.min(), i - i.min()] = np.asarray(values, float)
+        dx = np.ptp(x) / np.ptp(i) if np.ptp(i) > 0 else 1.0
+        dy = np.ptp(y) / np.ptp(j) if np.ptp(j) > 0 else 1.0
+        ext = [x.min() - dx / 2, x.max() + dx / 2, y.min() - dy / 2, y.max() + dy / 2]
+        im = ax.imshow(Z, origin="lower", extent=ext, cmap=cmap, vmin=vmin, vmax=vmax,
+                       interpolation="nearest")
     _add_boundary(ax, boundary, color="0.6")
     ax.set_title(title, fontsize=9)
     ax.set_xlabel("x"); ax.set_ylabel("y")
@@ -1360,7 +1371,8 @@ def _tile(ax, grid, values, title, vmin=None, vmax=None, cmap="magma", boundary=
 def plot_grid(res, figsize=(9, 3.8)):
     """Gridded cell counts (Y) and summed expression (M). With a tissue
     boundary, only the grid cells inside the tissue are drawn, together with
-    the tissue outline."""
+    the tissue outline. Pre-aggregated units (units=True) are drawn as one
+    point each."""
     import matplotlib.pyplot as plt
     grid = res.grid if isinstance(res, DenMarkResult) else res["grid"]
     gene = res.gene if isinstance(res, DenMarkResult) else res["gene"]
@@ -1444,7 +1456,8 @@ def plot_boundary(cells: pd.DataFrame, boundary, grid: Optional[dict] = None,
 
 def plot_fields(res: DenMarkResult, fields: Optional[pd.DataFrame] = None, figsize=(12, 7)):
     """Latent-field decomposition maps; each row shares one color scale.
-    With a tissue boundary, the tissue outline is drawn on every map."""
+    With a tissue boundary, the tissue outline is drawn on every map.
+    Pre-aggregated units (units=True) are drawn as one point each."""
     import matplotlib.pyplot as plt
     f = res.fields() if fields is None else fields
     bd = res.info.get("boundary")

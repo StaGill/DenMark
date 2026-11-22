@@ -18,7 +18,8 @@ objects when patchwork is not installed.
 \description{
 Tile maps of the cell count and the summed expression of each grid cell.
 With a tissue boundary, only the grid cells inside the tissue are drawn,
-together with the tissue outline.
+together with the tissue outline. Pre-aggregated units (\code{units = TRUE})
+are drawn as one point each.
 }
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}

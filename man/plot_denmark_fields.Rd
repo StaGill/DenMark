@@ -21,7 +21,8 @@ patchwork is not installed.
 \description{
 Row 1 (cell density): \verb{beta0 + a11 w1} and \verb{a11 w1}, on a shared color
 scale. Row 2 (expression): \verb{beta1 + a21 w1 + a22 w2}, \verb{a21 w1} and
-\verb{a22 w2}, on a shared color scale.
+\verb{a22 w2}, on a shared color scale. Pre-aggregated units (\code{units = TRUE})
+are drawn as one point each.
 }
 \examples{
 \dontshow{if (requireNamespace("cmdstanr", quietly = TRUE) && !is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE)) && requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}

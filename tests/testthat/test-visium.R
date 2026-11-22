@@ -178,3 +178,32 @@ test_that("denmark_scan keeps the offset and unit columns", {
   expect_equal(seen$geneA, c("x", "y", "UMI", "Y", "area", "geneA"))
   expect_error(denmark_scan(cells, units = TRUE, verbose = FALSE), "Missing column")
 })
+
+test_that("denmark_fields uses the total-count offset of an offset = 'umi' fit", {
+  w <- function(v, x) posterior::as_draws_matrix(
+    matrix(x, nrow = 2, byrow = TRUE, dimnames = list(NULL, paste0(v, "[", 1:3, "]"))))
+  W <- list(w1 = w("w1", c(0.1, 0.2, 0.3, -0.1, 0, 0.1)),
+            w2 = w("w2", c(0, 0.1, 0.2, 0.2, 0.1, 0)))
+  local_mocked_bindings(denmark_draws = function(obj) data.frame(
+    beta0 = c(0, 0.1), beta1 = c(-1, -0.9), a11 = c(1, 1.1), a21 = c(0.3, 0.2), a22 = c(0.5, 0.6)))
+  obj <- structure(list(
+    fit = list(draws = function(v) W[[v]]),
+    stan_data = list(n = 3, log_grid_area = rep(0, 3), log_umi = log(c(100, 200, 300) + 0.05)),
+    grid = data.frame(grid_index = 1:3, i = NA_integer_, j = NA_integer_, x = c(0, 1, 2),
+                      y = c(0, 1, 0), Y = c(3, 5, 2), M = c(1, 2, 0))), class = "denmark")
+  f <- denmark_fields(obj)
+  expect_equal(f$log_lambda2 - f$eta2, obj$stan_data$log_umi)
+  obj$stan_data$log_umi <- NULL
+  f <- denmark_fields(obj)
+  expect_equal(f$log_lambda2 - f$eta2, log(obj$grid$Y + 0.05))
+})
+
+test_that("maps of pre-aggregated units draw one point per unit", {
+  u <- data.frame(grid_index = 1:3, i = NA_integer_, j = NA_integer_, x = c(0, 2.5, 1),
+                  y = c(0, 0.9, 2.6), Y = c(3, 5, 2), M = c(1, 2, 0), type = "unit")
+  expect_s3_class(.tile_plot(u, "Y", "cells")$layers[[1]]$geom, "GeomPoint")
+  g <- transform(u, i = 1:3, j = 1L)
+  expect_s3_class(.tile_plot(g, "Y", "cells")$layers[[1]]$geom, "GeomTile")
+  p <- plot_denmark_grid(list(grid = u, gene = "geneA"))
+  expect_no_error(ggplot2::ggplot_build(p[[1]]))
+})

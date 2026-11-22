@@ -21,14 +21,16 @@ Posterior means (and optional quantiles) of
 \itemize{
 \item \verb{eta1 = beta0 + a11 w1}, the log cell intensity per unit area;
 \item \verb{a11w1 = a11 w1}, the density latent field;
-\item \verb{eta2 = beta1 + a21 w1 + a22 w2}, the log expression per cell;
+\item \verb{eta2 = beta1 + a21 w1 + a22 w2}, the log expression per cell (per unit
+of total count with \code{offset = "umi"});
 \item \verb{a21w1 = a21 w1}, the density-shared part of expression;
 \item \verb{a22w2 = a22 w2}, the expression-specific part.
 }
 }
 \details{
 The full linear predictors are \code{log_lambda1 = log|g| + eta1} and
-\code{log_lambda2 = log(Y + 0.05) + eta2}.
+\code{log_lambda2 = log(Y + 0.05) + eta2}, or \code{log(T + 0.05) + eta2} with
+\code{offset = "umi"}.
 }
 \examples{
 \dontshow{if (requireNamespace("cmdstanr", quietly = TRUE) && !is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE)) && requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}

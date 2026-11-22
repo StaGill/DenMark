@@ -91,12 +91,14 @@ denmark_draws <- function(obj) {
 #' Posterior means (and optional quantiles) of
 #' * `eta1 = beta0 + a11 w1`, the log cell intensity per unit area;
 #' * `a11w1 = a11 w1`, the density latent field;
-#' * `eta2 = beta1 + a21 w1 + a22 w2`, the log expression per cell;
+#' * `eta2 = beta1 + a21 w1 + a22 w2`, the log expression per cell (per unit
+#'   of total count with `offset = "umi"`);
 #' * `a21w1 = a21 w1`, the density-shared part of expression;
 #' * `a22w2 = a22 w2`, the expression-specific part.
 #'
 #' The full linear predictors are `log_lambda1 = log|g| + eta1` and
-#' `log_lambda2 = log(Y + 0.05) + eta2`.
+#' `log_lambda2 = log(Y + 0.05) + eta2`, or `log(T + 0.05) + eta2` with
+#' `offset = "umi"`.
 #'
 #' @param obj A `denmark` object fitted with `keep_fit = TRUE`.
 #' @param probs Optional probabilities; for each, the posterior quantiles of
@@ -135,7 +137,8 @@ denmark_fields <- function(obj, probs = NULL) {
       out[[sprintf("%s_q%s", nm, p * 100)]] <- apply(comp[[nm]], 2, stats::quantile, p)
   }
   out$log_lambda1 <- obj$stan_data$log_grid_area + out$eta1
-  out$log_lambda2 <- log(out$Y + 0.05) + out$eta2
+  expo <- if (!is.null(obj$stan_data$log_umi)) obj$stan_data$log_umi else log(out$Y + 0.05)
+  out$log_lambda2 <- expo + out$eta2
   out
 }
 

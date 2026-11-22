@@ -27,9 +27,12 @@
 
 .tile_plot <- function(df, value, title, limits = NULL, legend = NULL,
                        xlab = "x", ylab = "y", diverging = FALSE, boundary = NULL) {
+  units <- "i" %in% names(df) && all(is.na(df[["i"]]))   # pre-aggregated units: no grid
   p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y,
                                         fill = .data[[value]])) +
-    ggplot2::geom_tile(colour = "grey30", linewidth = 0.15) +
+    (if (units) ggplot2::geom_point(shape = 21, size = max(0.8, min(4, 60 / sqrt(nrow(df)))),
+                                    colour = "grey30", stroke = 0.15)
+     else ggplot2::geom_tile(colour = "grey30", linewidth = 0.15)) +
     ggplot2::coord_equal() +
     ggplot2::labs(title = title, x = xlab, y = ylab, fill = legend) +
     .theme_denmark()
@@ -56,7 +59,8 @@
 #'
 #' Tile maps of the cell count and the summed expression of each grid cell.
 #' With a tissue boundary, only the grid cells inside the tissue are drawn,
-#' together with the tissue outline.
+#' together with the tissue outline. Pre-aggregated units (`units = TRUE`)
+#' are drawn as one point each.
 #'
 #' @param obj A `denmark` fit, or the result of [buildgridpp()].
 #' @param xlab,ylab Axis labels.
@@ -150,7 +154,8 @@ plot_denmark_boundary <- function(cells, boundary, grid = NULL, highlight = NULL
 #'
 #' Row 1 (cell density): `beta0 + a11 w1` and `a11 w1`, on a shared color
 #' scale. Row 2 (expression): `beta1 + a21 w1 + a22 w2`, `a21 w1` and
-#' `a22 w2`, on a shared color scale.
+#' `a22 w2`, on a shared color scale. Pre-aggregated units (`units = TRUE`)
+#' are drawn as one point each.
 #'
 #' @param obj A `denmark` object fitted with `keep_fit = TRUE`.
 #' @param fields Optional output of [denmark_fields()]; computed from `obj`

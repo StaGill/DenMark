@@ -128,7 +128,7 @@ def test_pool_visium_checks_its_input():
     spots = hex_spots()
     with pytest.raises(ValueError, match="Missing column"):
         dm.pool_visium(spots.drop(columns="Y"))
-    bad = spots.copy()
+    bad = spots.astype({"geneA": float})          # pandas 3 refuses 0.5 in an integer column
     bad.loc[0, "geneA"] = 0.5
     with pytest.raises(ValueError, match="integer counts"):
         dm.pool_visium(bad)
@@ -172,3 +172,23 @@ def test_max_dist_is_the_largest_pairwise_distance():
     assert core._max_dist(np.array([[1.0, 2.0]])) == 0.0
     th = np.linspace(0, 2 * np.pi, 361)[:-1]
     assert core._max_dist(np.column_stack([np.cos(th), np.sin(th)])) == pytest.approx(2)
+
+
+def test_fields_use_the_total_count_offset():
+    class _Fit:
+        def stan_variable(self, name):
+            return {"w1": np.array([[0.1, 0.2, 0.3], [-0.1, 0.0, 0.1]]),
+                    "w2": np.array([[0.0, 0.1, 0.2], [0.2, 0.1, 0.0]])}[name]
+
+    grid = pd.DataFrame({"grid_index": [0, 1, 2], "i": np.nan, "j": np.nan,
+                         "x": [0.0, 1.0, 2.0], "y": [0.0, 1.0, 0.0], "Y": [3, 5, 2], "M": [1, 2, 0]})
+    sd = {"n": 3, "log_grid_area": np.zeros(3),
+          "log_umi": np.log(np.array([100.0, 200.0, 300.0]) + 0.05)}
+    res = dm.DenMarkResult(fit=_Fit(), gene="g", stan_data=sd, grid=grid, info={}, settings={})
+    res.draws = lambda: pd.DataFrame({"beta0": [0.0, 0.1], "beta1": [-1.0, -0.9],
+                                      "a11": [1.0, 1.1], "a21": [0.3, 0.2], "a22": [0.5, 0.6]})
+    f = res.fields()
+    np.testing.assert_allclose(f["log_lambda2"] - f["eta2"], sd["log_umi"])
+    del sd["log_umi"]
+    f = res.fields()
+    np.testing.assert_allclose(f["log_lambda2"] - f["eta2"], np.log(grid["Y"] + 0.05))
