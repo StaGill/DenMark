@@ -134,6 +134,7 @@ expected location of each.
   sections), and the per-section fits behind Figure 3J and Figures S8 and S9.
 - Figures 4A, 4B, S11, S12 and S16A-B (breast-tumor maps, region grids, density
   and detection-depth diagnostics).
+- Figure S18 (B cells and CD4+ T cells near CD8+ T cells in the breast tumor).
 - Figures 5A, 5C-E and S19, the full-panel fits of Figure 5E and Data S4, and the
   cell-count offset fits of Figures S20B and S20D.
 - Figures 6A, 6B, 6D and S21 and the maps of Figure 6F (simulated Visium spots,

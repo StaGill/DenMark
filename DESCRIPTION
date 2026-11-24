@@ -1,7 +1,7 @@
 Package: DenMark
 Type: Package
 Title: Cell-Density Correlated Genes from Spatial Transcriptomics
-Version: 0.9.0
+Version: 1.0.0
 Authors@R: c(
     person("Mingchi", "Xu", role = "aut"),
     person(c("Alexandra", "M."), "Schmidt", role = "aut"),

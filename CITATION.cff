@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use DenMark in your research, please cite the accompanying paper."
 title: "DenMark: A Bayesian Hierarchical Model for Identifying Cell-Density Correlated Genes from Spatial Transcriptomics"
 type: software
-version: "0.9.0"
+version: "1.0.0"
 authors:
   - family-names: Xu
     given-names: Mingchi

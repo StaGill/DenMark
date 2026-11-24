@@ -1,4 +1,6 @@
-# DenMark (development version)
+# DenMark 1.0.0
+
+The release that accompanies the manuscript.
 
 * `offset = "umi"` in `DenMark()` and `denmark_prepare()` (Python: `DenMark()`, `prepare_data()`): the expression counts take the total count of the focal cells in each grid cell as their exposure, `log(T + 0.05)` with `T` summed from a per-cell column named by `umi =`, instead of the number of cells. This is the model of the revised manuscript for sequencing data (`DenMark-vararea-umi.stan`), used for Visium HD in the ovarian analysis; rho then describes the share of the transcriptome taken by the gene rather than expression per cell, so the two offsets are not interchangeable. `buildgridpp(umi =)` returns the summed total counts as `T`, and `denmark_fields()` (Python: `fit.fields()`) adds that exposure, not the cell count, to `log_lambda2`.
 * `denmark_pool_visium()` (Python: `pool_visium()`) pools spot-level Visium data into hexagonal super-grids of seven spots, with Mingchi Xu's aperture-7 rule from the colorectal analysis (`CodeInPaper/Visium-ColorectalCancer`) kept verbatim; pools of fewer than three spots are folded into the nearest larger pool. `DenMark(units = TRUE)` fits such pre-aggregated units directly, with their area as offset, alone or with `offset = "umi"`. Maps of these fits (`plot_denmark_grid()`, `plot_denmark_fields()`; Python: `plot_grid()`, `plot_fields()`) draw one point per unit.
@@ -47,8 +49,3 @@ Mingchi Xu's revision of the analysis functions (`DenMark/DenMark-functions.R`, 
 ## Help for users
 
 * A FAQ page (installation, input data, grid and basis settings, convergence, reading the results), a Google Colab notebook of the toy-data workflow, and issue templates for bug reports and questions about data.
-
-## Planned for 1.0.0
-
-* Total-UMI expression offset for sequencing-based platforms (Visium HD and Visium).
-* Pooling of Visium spots into seven-spot super-grids.

@@ -20,7 +20,7 @@ denmark.datasets.load_toy() returns simulated toy data with known answers.
 import sys
 import types
 
-__version__ = "0.9.0"
+__version__ = "1.0.0"
 
 from . import core, datasets
 from .core import *  # noqa: F401,F403
