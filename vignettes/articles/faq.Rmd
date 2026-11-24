@@ -18,11 +18,11 @@ title: "Frequently asked questions"
 
 **Can I analyze part of a section?** Yes: pass `bbox = c(xmin, xmax, ymin, ymax)`, or subset the cells to a region of interest. With a tissue `boundary`, also pass the region as `bbox`, since the grid otherwise spans the whole boundary. The size of the region sets the spatial scale of the analysis.
 
-**Can I use Visium or Visium HD data?** Version 0.9.0 models single-cell resolution data (Xenium, MERFISH, CosMx) with the cell count as the expression offset. Version 1.0.0 will add the total-transcript offset for sequencing-based platforms and the pooling of Visium spots into seven-spot super-grids, as used in the revised manuscript.
+**Can I use Visium or Visium HD data?** Yes. On Visium HD, use segmented cells and the total transcript count as the offset (`offset = "umi"`, with the column of totals as `umi`), because read depth varies across the capture area. On spot-level Visium, count the cells or nuclei in each spot, pool the spots into seven-spot super-grids with `denmark_pool_visium()` (Python: `pool_visium()`), and fit the pools with `units = TRUE`. The two offsets measure different things, so report which one you used. [Gene programs on Visium HD and Xenium](programs.html) runs an analysis from start to finish.
 
 ## Settings
 
-**How fine should the grid be?** As fine as computation allows: the fitted density and expression approach their cell-level values as the grid becomes finer (Figure 2F of the manuscript), and the analyses in the manuscript use grids of 30 x 30 to 50 x 50. The function default and the examples on this site use a 10 x 10 grid only to run quickly; set `grid_size` for an analysis.
+**How fine should the grid be?** As fine as computation allows: the fitted density and expression approach their cell-level values as the grid becomes finer (Figure 2F of the manuscript), and the analyses in the manuscript use grids of 30 x 30 to 50 x 50. The function default is 30 x 30. The examples on this site use a 10 x 10 grid only to run quickly.
 
 **How many basis functions?** The default is 25 per axis. After a fit, `denmark_check_hsgp()` (Python: `fit.check_hsgp()`) compares the fitted length-scales with what the number of basis functions and the boundary factor can represent, and prints a message when they fall short, with the boundary factor needed or the smallest length-scale the basis can represent.
 
@@ -34,6 +34,6 @@ title: "Frequently asked questions"
 
 **What does rho mean?** The correlation between the latent field of cell density and the latent field of expression per cell: positive when a gene's expression per cell is higher where the population is crowded, negative when it is lower. It describes co-variation between grid cells, over distances up to the fields' practical ranges, not between individual cells, and not a mechanism.
 
-**A gene is "not DCG". Is its expression unrelated to density?** Not necessarily. The 95% credible interval of rho includes zero, so the data do not settle the sign at that level. A narrow interval around zero says the correlation is small; a wide one says the data say little either way. [Reading density-correlated genes](reading-dcgs.html) covers this in more depth.
+**A gene is "uninformative". Is its expression unrelated to density?** Not necessarily. The 95% credible interval of rho includes zero, so the data do not settle the sign at that level. A narrow interval around zero says the correlation is small; a wide one says the data say little either way. [Reading density-correlated genes](reading-dcgs.html) covers this in more depth.
 
 **Why do R and Python give slightly different numbers?** They build the same Stan data and fit the same Stan models, so their estimates agree within Monte Carlo error. Their simulators differ, so compare the two languages on the same data file, as the toy data do.

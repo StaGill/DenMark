@@ -8,7 +8,7 @@
 DenMark(
   dataset,
   gene = NULL,
-  grid_size = 10,
+  grid_size = 30,
   basis = 25,
   boundfactor = 1.5,
   bbox = NULL,

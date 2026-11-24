@@ -354,7 +354,7 @@ denmark_hsgp_indices <- function(basis) {
 #'                           boundary = tissue)
 #' prep_b$info[c("n_grid_total", "n_interior", "n_boundary")]
 #' summary(exp(prep_b$stan_data$log_grid_area))
-denmark_prepare <- function(dataset, gene = NULL, grid_size = 10, basis = 25,
+denmark_prepare <- function(dataset, gene = NULL, grid_size = 30, basis = 25,
                             boundfactor = 1.5, bbox = NULL, L1 = NULL, L2 = NULL,
                             boundary = NULL, min_area_frac = 0,
                             offset = c("cells", "umi"), umi = NULL,

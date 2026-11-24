@@ -34,7 +34,7 @@ colnames(counts) <- paste0("cell", 1:10)
 obj <- SeuratObject::CreateSeuratObject(counts = counts)
 scan <- data.frame(gene = c("geneA", "geneC"), rho_mean = c(0.6, -0.6),
                    rho_lower = c(0.3, -0.8), rho_upper = c(0.8, -0.3),
-                   class = c("PCG", "NCG"))
+                   class = c("positive DCG", "negative DCG"))
 obj <- denmark_annotate(obj, scan)
 obj[["RNA"]][[]]
 \dontshow{\}) # examplesIf}

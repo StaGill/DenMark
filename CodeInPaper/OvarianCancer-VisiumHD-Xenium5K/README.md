@@ -14,7 +14,7 @@ tiles over an alpha-shape domain.
 
 | File | Purpose | Figures and tables |
 |---|---|---|
-| `denmark_xplatform_replication_umi_30x30-cleaned.ipynb` | Loads the three platforms, intersects their panels, marks tumor cells, and fits `inst/stan/DenMark-vararea-umi.stan` for each program (and for several single genes) on Visium HD and on the Xenium section of each pair | Figure 5G and Figure S19A (`fig_forest_HD_5K_programs.png`); Figure S19C (`fig_forest_HD_v1_programs.png`); tumor cells on each section (`fig_qc_tumour_mask.png`, compare Figure 5F); program genes on each shared panel (`fig_program_gene_survival.png`, compare Figure 5B); panel size and cell numbers (`fig_dataset_summary.png`); Data S4, shared-panel columns (`denmark_rho_pairwise_umi.csv`, `res_HD_a.csv`, `res_v1.csv`, `res_HD_b.csv`, `res_5K.csv`) |
+| `denmark_xplatform_replication_umi_30x30-cleaned.ipynb` | Loads the three platforms, intersects their panels, marks tumor cells, and fits `inst/stan/DenMark-vararea-umi.stan` for each program (and for several single genes) on Visium HD and on the Xenium section of each pair | Figure 5G and Figure S20A (`fig_forest_HD_5K_programs.png`); Figure S20C (`fig_forest_HD_v1_programs.png`); tumor cells on each section (`fig_qc_tumour_mask.png`, compare Figure 5F); program genes on each shared panel (`fig_program_gene_survival.png`, compare Figure 5B); panel size and cell numbers (`fig_dataset_summary.png`); Data S4, shared-panel columns (`denmark_rho_pairwise_umi.csv`, `res_HD_a.csv`, `res_v1.csv`, `res_HD_b.csv`, `res_5K.csv`) |
 
 Outputs go to `OUTPUT_DIR/xplatform_out/` (with `rho_draws.pkl`, `aux_all.pkl`
 and `session_meta.pkl` for replotting) and the CmdStan files to
@@ -57,7 +57,7 @@ contains; the two pairwise comparisons had finished and were saved before it.
 
 - The annotated Visium HD object
   `visium_hd_ovarian_cancer_annotated.h5ad` and the notebook that builds it. The
-  same pipeline gives Figures 5A, 5C-E and S18 and the full-panel fits of Figure
+  same pipeline gives Figures 5A, 5C-E and S19 and the full-panel fits of Figure
   5E and Data S4.
-- The fits with the tumor-cell count per tile as the offset (Figures S19B and
-  S19D).
+- The fits with the tumor-cell count per tile as the offset (Figures S20B and
+  S20D).

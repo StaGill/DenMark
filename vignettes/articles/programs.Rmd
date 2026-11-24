@@ -1,0 +1,302 @@
+---
+title: "Gene programs on Visium HD and Xenium"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 3.5)
+has_cmdstan <- requireNamespace("cmdstanr", quietly = TRUE) &&
+  !is.null(tryCatch(cmdstanr::cmdstan_version(), error = function(e) NULL))
+has_sf <- requireNamespace("sf", quietly = TRUE)
+run_fits <- has_cmdstan && has_sf
+```
+
+A gene program is a set of genes fitted as one mark: its count in a cell is the sum of the raw counts of its genes. The DenMark manuscript fits four programs (proliferation, hypoxia, epithelial identity and the mesenchymal state) to the tumor cells of an ovarian tumor measured with Visium HD and Xenium Prime 5K. This page runs the same steps, from the cell table to the estimates, on a simulated section with a known answer. The last sections compare two platforms and prepare the cell table from your own data. Data S4 of the manuscript (sheet `Guideline_program`) summarizes the recommendations.
+
+## Genes or programs?
+
+- Screen genes one at a time for discovery, on targeted panels of a few hundred genes. DenMark fits one model per mark, so a whole-transcriptome panel takes thousands of fits.
+- Fit programs to test a predefined hypothesis, such as whether proliferation tracks tumor cell density.
+- Fit programs to compare platforms, since each program can be restricted to the genes that all of them measure.
+- Fit programs when single genes are sparse. The sum pools the counts of the genes into one mark.
+
+## The cells
+
+The example section has one row per cell, with the coordinates `x` and `y`, the cell type `celltype`, the total count of the cell `total`, and the raw counts of the genes of three programs. The 4,448 `Tumor` cells are the population analyzed, and their true density-expression correlations are 0.7 for proliferation, -0.7 for hypoxia and 0 for the epithelial program. The 4,000 `Other` cells help delineate the tissue. The section has two features that a real data set may have: the capture depth of a cell falls where cells are crowded, and one abundant gene listed in the hypoxia set (`HYP0`) follows a pattern of its own. `data-raw/make_program_data.R` in the repository simulates the section.
+
+### Load the data {.tabset}
+
+#### R
+
+```{r load}
+library(DenMark)
+cells <- read.csv(system.file("extdata", "denmark_programs.csv.gz", package = "DenMark"))
+tumor <- subset(cells, celltype == "Tumor")
+cells[1:3, c("x", "y", "celltype", "total", "PROL1", "PROL2", "HYP0", "HYP1", "EPI1")]
+```
+
+#### Python
+
+```python
+import pandas as pd
+import denmark as dm
+
+url = "https://raw.githubusercontent.com/StaGill/DenMark/main/inst/extdata/denmark_programs.csv.gz"
+cells = pd.read_csv(url)
+tumor = cells[cells["celltype"] == "Tumor"].copy()
+```
+
+## Build the programs
+
+Start from published gene sets, such as the Tirosh cell-cycle genes for proliferation or the Buffa signature for hypoxia. Proliferation, hypoxia and epithelial-mesenchymal transition (EMT) are common first choices, together with lineage markers of the cell types expected near the focal population. Then, for each program:
+
+1. Keep the genes on the panel.
+2. Drop genes with few counts in the focal cells (the manuscript asks for at least 50).
+3. Look at how the counts are shared. With $p_j$ the share of gene $j$ in the program, the effective number of genes is $J_{\mathrm{eff}} = 1/\sum_j p_j^2$. It equals the number of genes when all contribute equally, and 1 when a single gene dominates.
+4. Flag a gene that carries half of the counts or more. The sum then follows that gene rather than the program, and abundant glycolytic, ribosomal, mitochondrial and housekeeping genes often track the transcript content of the cell. Remove the gene, or fit it as its own mark.
+
+There is no fixed minimum size. Report $J_{\mathrm{eff}}$ with the estimate: a program of 93 genes whose counts sit in five of them behaves as a program of five genes.
+
+### Check the gene sets {.tabset}
+
+#### R
+
+```{r sets}
+sets <- list(proliferation = paste0("PROL", 1:15),
+             hypoxia       = paste0("HYP", 0:8),
+             epithelial    = paste0("EPI", 1:4))
+
+check_program <- function(genes, cells, min_count = 50) {
+  genes <- intersect(genes, names(cells))             # on the panel
+  counts <- colSums(cells[, genes, drop = FALSE])
+  counts <- sort(counts[counts >= min_count], decreasing = TRUE)
+  share <- counts / sum(counts)
+  list(genes = names(counts), j_eff = 1 / sum(share^2), top = share[1])
+}
+
+checks <- lapply(sets, check_program, cells = tumor)
+data.frame(listed    = lengths(sets),
+           kept      = sapply(checks, function(k) length(k$genes)),
+           J_eff     = round(sapply(checks, `[[`, "j_eff"), 1),
+           top_gene  = sapply(checks, function(k) names(k$top)),
+           top_share = round(sapply(checks, function(k) k$top[[1]]), 2))
+```
+
+#### Python
+
+```python
+sets = {"proliferation": [f"PROL{k}" for k in range(1, 16)],
+        "hypoxia": [f"HYP{k}" for k in range(0, 9)],
+        "epithelial": [f"EPI{k}" for k in range(1, 5)]}
+
+def check_program(genes, cells, min_count=50):
+    genes = [g for g in genes if g in cells.columns]          # on the panel
+    counts = cells[genes].sum().sort_values(ascending=False)
+    counts = counts[counts >= min_count]
+    share = counts / counts.sum()
+    return {"genes": list(counts.index), "j_eff": 1 / (share ** 2).sum(), "top": share.index[0],
+            "top_share": share.iloc[0]}
+
+checks = {p: check_program(g, tumor) for p, g in sets.items()}
+print(pd.DataFrame(checks).T)
+```
+
+One proliferation gene is not on the panel and another has too few counts. In the hypoxia set, `HYP0` carries 59% of the counts, so we remove it and check the set again. The program is the row sum of the raw counts of the kept genes. DenMark models raw counts with a Poisson likelihood, so nothing is normalized or log-transformed.
+
+### Sum the counts {.tabset}
+
+#### R
+
+```{r sum}
+checks$hypoxia <- check_program(setdiff(sets$hypoxia, "HYP0"), tumor)
+c(kept = length(checks$hypoxia$genes), J_eff = round(checks$hypoxia$j_eff, 1),
+  top_share = round(checks$hypoxia$top[[1]], 2))
+
+programs <- names(sets)
+for (p in programs) tumor[[p]] <- rowSums(tumor[, checks[[p]]$genes])
+tumor$hypoxia_HYP0 <- tumor$hypoxia + tumor$HYP0     # kept for comparison below
+```
+
+#### Python
+
+```python
+checks["hypoxia"] = check_program([g for g in sets["hypoxia"] if g != "HYP0"], tumor)
+print(checks["hypoxia"])
+
+programs = list(sets)
+for p in programs:
+    tumor[p] = tumor[checks[p]["genes"]].sum(axis=1)
+tumor["hypoxia_HYP0"] = tumor["hypoxia"] + tumor["HYP0"]     # kept for comparison below
+```
+
+## Choose the offset
+
+The offset is the exposure of the expression counts, and it decides what ρ describes.
+
+- `offset = "cells"` (the default): the number of focal cells in each grid cell, so ρ describes expression per cell. Use it on imaging-based platforms.
+- `offset = "umi"`: the total count of the focal cells in each grid cell, so ρ describes the share of the transcriptome that the program takes. Use it on sequencing-based platforms, where read depth varies across the capture area. Pass the column of totals as `umi`.
+
+The two estimands differ and are not interchangeable. Report which one you used.
+
+## Boundary and grid
+
+The boundary marks where any cell could have been observed, so it is computed from all cells, and the model then uses the focal population. We grid the section into 18 x 12 cells, which are about square.
+
+### Grid the section {.tabset}
+
+#### R
+
+```{r grid, eval = has_sf}
+tissue <- denmark_alpha_shape(cells$x, cells$y)
+prep <- denmark_prepare(tumor[, c("x", "y", "total", "proliferation")], gene = "proliferation",
+                        grid_size = c(18, 12), basis = 12, boundary = tissue,
+                        offset = "umi", umi = "total")
+prep$info[c("n_grid_total", "n_interior", "n_boundary")]
+with(subset(prep$grid, Y > 0), cor(log(Y), log(T / Y)))     # count per cell against cell density
+```
+
+#### Python
+
+```python
+import numpy as np
+
+tissue = dm.alpha_shape(cells["x"], cells["y"])
+prep = dm.prepare_data(tumor[["x", "y", "total", "proliferation"]], gene="proliferation",
+                       grid_size=(18, 12), basis=12, boundary=tissue, offset="umi", umi="total")
+g = prep["grid"]
+g = g[g["Y"] > 0]
+print(len(prep["grid"]), np.corrcoef(np.log(g["Y"]), np.log(g["T"] / g["Y"]))[0, 1])
+```
+
+The last line is the correlation between the number of tumor cells and the mean total count per cell across the grid cells. It is strongly negative here, so the crowded grid cells hold shallow cells, and the two offsets will not agree.
+
+The number of basis functions per axis, `basis`, sets the finest pattern the fields can follow, about `boundfactor * W / basis` for a region of width `W` (here 1.5 x 6 / 12 = 0.75). Use the same grid and the same number of basis functions on every platform in a comparison, and state both with the estimates.
+
+## Fit
+
+`denmark_scan()` (Python: `scan_genes()`) fits one mark after another, so the programs are scanned as if they were genes. The settings are short so that the page builds quickly. An analysis uses the default sampler settings: four chains of 1,000 warm-up and 1,000 sampling iterations.
+
+### Fit the programs {.tabset}
+
+#### R
+
+```{r fit, eval = run_fits, message = FALSE}
+settings <- list(boundary = tissue, grid_size = c(18, 12), basis = 12, chains = 4,
+                 iter_warmup = 500, iter_sampling = 500, seed = 2024, verbose = FALSE)
+
+scan_umi <- do.call(denmark_scan, c(list(tumor[, c("x", "y", "total", programs)], genes = programs,
+                                         offset = "umi", umi = "total"), settings))
+scan_umi$true_rho <- c(proliferation = 0.7, hypoxia = -0.7, epithelial = 0)[scan_umi$gene]
+scan_umi[, c("gene", "true_rho", "rho_mean", "rho_lower", "rho_upper", "class", "converged")]
+```
+
+#### Python
+
+```python
+settings = dict(boundary=tissue, grid_size=(18, 12), basis=12, chains=4,
+                iter_warmup=500, iter_sampling=500, seed=2024, verbose=False)
+
+scan_umi = dm.scan_genes(tumor[["x", "y", "total"] + programs], genes=programs,
+                         offset="umi", umi="total", **settings)
+print(scan_umi[["gene", "rho_mean", "rho_lower", "rho_upper", "class", "converged"]])
+```
+
+```{r no-cmdstan, echo = FALSE, results = "asis", eval = !run_fits}
+cat("> CmdStan or sf was not available when this page was built, so the chunks that need them were not run.\n")
+```
+
+`class` calls a program "positive DCG" when the 95% credible interval of ρ lies above zero, "negative DCG" when it lies below zero and "uninformative" when it includes zero, as for single genes. The intervals are wide because the section is small, and they cover the true values. `converged` is `TRUE` when the largest R-hat is below 1.01 and no transition diverged, which a short run may miss.
+
+## What the choices change
+
+The choice of offset and the trimming of the hypoxia set both change the answer. With the cell count as the offset, the lower depth of crowded cells pulls the correlations down. The epithelial program, which is unrelated to density, moves well below zero, and proliferation moves toward zero. With `HYP0` left in the set, the program follows that gene more than its own genes, and its estimate moves away from -0.7.
+
+### The same programs, other choices {.tabset}
+
+#### R
+
+```{r choices, eval = run_fits, message = FALSE}
+scan_cells <- do.call(denmark_scan, c(list(tumor[, c("x", "y", programs)], genes = programs),
+                                      settings))
+scan_hyp0 <- do.call(denmark_scan, c(list(tumor[, c("x", "y", "total", "hypoxia_HYP0")],
+                                          genes = "hypoxia_HYP0", offset = "umi", umi = "total"),
+                                     settings))
+cols <- c("gene", "rho_mean", "rho_lower", "rho_upper", "class")
+rbind(cbind(offset = "cells", scan_cells[, cols]),
+      cbind(offset = "umi", scan_hyp0[, cols]))
+```
+
+#### Python
+
+```python
+scan_cells = dm.scan_genes(tumor[["x", "y"] + programs], genes=programs, **settings)
+scan_hyp0 = dm.scan_genes(tumor[["x", "y", "total", "hypoxia_HYP0"]], genes=["hypoxia_HYP0"],
+                          offset="umi", umi="total", **settings)
+print(scan_cells[["gene", "rho_mean", "rho_lower", "rho_upper"]])
+print(scan_hyp0[["gene", "rho_mean", "rho_lower", "rho_upper"]])
+```
+
+## Read and report
+
+Report with each estimate the offset, the grid, the number of basis functions, the kept genes with $J_{\mathrm{eff}}$, and the focal population. To see whether an estimate depends on the number of basis functions, refit with more of them, and check the fit of one program with `denmark_check_hsgp()` (Python: `fit.check_hsgp()`), which compares the fitted length-scales with what the basis can represent. When the estimate changes with the number of basis functions, it describes the patterns that the chosen number can follow, and it should be read at that scale.
+
+To read a program against its neighborhood, follow [Reading density-correlated genes](reading-dcgs.html): choose gauge genes that a neighboring cell type expresses and the focal type does not, and fit them with the same settings.
+
+## Compare two platforms
+
+A comparison is fair when every platform measures the same features and uses the same exposure. Restrict each program to the genes that all panels share, compute the totals over those genes on every platform, use the same grid size and the same number of basis functions, fit each platform separately, and compare the direction of the estimates and their intervals.
+
+### Programs on shared genes {.tabset}
+
+#### R
+
+```r
+# counts_a, counts_b: genes x cells matrices of raw counts of the two platforms
+shared <- intersect(rownames(counts_a), rownames(counts_b))
+sets_shared <- lapply(sets, intersect, shared)
+cells_a$total <- Matrix::colSums(counts_a[shared, ])
+cells_b$total <- Matrix::colSums(counts_b[shared, ])
+# then build, check and fit the programs of `sets_shared` on each platform as above, with offset = "umi"
+```
+
+#### Python
+
+```python
+# adata_a, adata_b: AnnData objects with raw counts of the two platforms
+shared = adata_a.var_names.intersection(adata_b.var_names)
+sets_shared = {p: [g for g in genes if g in shared] for p, genes in sets.items()}
+cells_a["total"] = np.asarray(adata_a[:, shared].X.sum(axis=1)).ravel()
+cells_b["total"] = np.asarray(adata_b[:, shared].X.sum(axis=1)).ravel()
+# then build, check and fit the programs of `sets_shared` on each platform as above, with offset="umi"
+```
+
+The manuscript restricts the four programs to the 4,583 genes shared by Visium HD and Xenium Prime 5K. `VIM` is on neither Xenium panel, so a program of EMT transcription factors stands in for the mesenchymal state. The analysis is in [`CodeInPaper/OvarianCancer-VisiumHD-Xenium5K/`](https://github.com/StaGill/DenMark/tree/main/CodeInPaper/OvarianCancer-VisiumHD-Xenium5K).
+
+## Your own data
+
+The cell table needs one row per cell with the centroid, the cell type and the raw counts of the program genes, plus the total count of the cell for `offset = "umi"`. Read only the genes of the programs, because each gene becomes a dense column, and compute the totals from the full sparse matrix. On Visium HD, use segmented cells, for example those of Space Ranger or bin2cell, with an independent cell-type annotation.
+
+### From a Seurat or AnnData object {.tabset}
+
+#### R
+
+```r
+# obj: a Seurat object with cell centroids, a `celltype` column and raw counts
+program_genes <- unique(unlist(sets))
+cells <- denmark_from_seurat(obj, celltype = "celltype",
+                             genes = intersect(program_genes, rownames(obj)))
+counts <- SeuratObject::LayerData(obj, layer = "counts")
+cells$total <- Matrix::colSums(counts)[rownames(cells)]
+```
+
+#### Python
+
+```python
+# adata: an AnnData object with the centroids in obsm["spatial"], a cell-type column
+# and raw counts in layers["counts"]
+program_genes = sorted({g for genes in sets.values() for g in genes})
+cells = dm.from_anndata(adata, celltype_key="celltype", layer="counts",
+                        genes=[g for g in program_genes if g in adata.var_names])
+cells["total"] = np.asarray(adata.layers["counts"].sum(axis=1)).ravel()
+```
+
+From here on, the steps above apply: check the programs, sum the counts, compute the boundary from all cells, and fit the focal population.

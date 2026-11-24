@@ -6,7 +6,7 @@ title: "Reading density-correlated genes"
 knitr::opts_chunk$set(eval = FALSE)
 ```
 
-DenMark estimates, for each gene, the correlation ρ between the local density of one cell population and the gene's expression per cell, with a 95% credible interval. A gene is a positively (PCG) or negatively (NCG) density-correlated gene when the interval lies above or below zero; the manuscript names these interval calls positive DCG and negative DCG, and an interval that includes zero uninformative, while its PCG and NCG mark only the sign of the posterior mean. This page explains what such a call can and cannot tell you, following the Discussion of the revised DenMark manuscript (Xu, Schmidt and Zhang, under review at Cell Reports Methods).
+DenMark estimates, for each gene, the correlation ρ between the local density of one cell population and the gene's expression per cell, with a 95% credible interval. A gene is a positive DCG or a negative DCG when the interval lies above or below zero, and uninformative when the interval includes zero, as in the manuscript. PCG and NCG in Figure 4C of the manuscript mark only the sign of the posterior mean, which is not a call. This page explains what such a call can and cannot tell you, following the Discussion of the revised DenMark manuscript (Xu, Schmidt and Zhang, under review at Cell Reports Methods).
 
 ## What ρ measures
 
@@ -16,7 +16,7 @@ The same fit splits the log expression into a part shared with density, a21 w1, 
 
 ## Where the information comes from
 
-DenMark learns about ρ from the spatial variation in the density of the focal population. Where the density hardly varies, the posterior of ρ moves toward its prior and the interval is wide. Where the population is sparse, the interval also widens, while keeping its coverage in the manuscript's simulations. A rare or evenly spread population therefore gives wide intervals rather than spurious density-correlated genes, and "not DCG" means that the data did not settle the sign of ρ, not that ρ is zero.
+DenMark learns about ρ from the spatial variation in the density of the focal population. Where the density hardly varies, the posterior of ρ moves toward its prior and the interval is wide. Where the population is sparse, the interval also widens, while keeping its coverage in the manuscript's simulations. A rare or evenly spread population therefore gives wide intervals rather than spurious density-correlated genes, and "uninformative" means that the data did not settle the sign of ρ, not that ρ is zero.
 
 ## One population at a time
 
@@ -61,6 +61,6 @@ print(scan[["gene", "rho_mean", "rho_lower", "rho_upper", "class"]])
 
 DenMark finds genes whose expression tracks local density; it does not resolve the mechanism, which may involve interactions among the cell types that share the tissue. The manuscript suggests that, for a gene that a coexisting population does not express, including that population's density as a covariate would test whether one population responds to crowding by another, and it leaves a joint model of coexisting cell types to future work; the package implements neither.
 
-Sections are fitted separately and compared, as the manuscript does for nine mouse brain sections; a hierarchical model that shares information across sections would increase the power to identify density-correlated genes. With the total transcript count as the offset, which version 1.0.0 will add for Visium HD and Visium, ρ measures how a gene's share of the transcriptome covaries with density.
+Sections are fitted separately and compared, as the manuscript does for nine mouse brain sections; a hierarchical model that shares information across sections would increase the power to identify density-correlated genes. With the total transcript count as the offset (`offset = "umi"`, for Visium HD and Visium), ρ measures how a gene's share of the transcriptome covaries with density.
 
 To read the density-correlated genes of an analysis as programs, see [Gene set enrichment of density-correlated genes](enrichment.html).

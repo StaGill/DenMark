@@ -4,10 +4,10 @@
 
 #' Fit DenMark gene by gene and call density-correlated genes (DCG)
 #'
-#' A gene is a positively density-correlated gene (PCG) when the
+#' A gene is a positively density-correlated gene ("positive DCG") when the
 #' `cred_level` credible interval of rho lies above 0, a negatively
-#' density-correlated gene (NCG) when it lies below 0, and "not DCG"
-#' otherwise.
+#' density-correlated gene ("negative DCG") when it lies below 0, and
+#' "uninformative" when the interval includes 0.
 #'
 #' @param data Data frame with columns `x`, `y` and one column per gene
 #'   (cells in rows), and the columns that `offset = "umi"` (`umi`) or
@@ -34,9 +34,9 @@
 #'   mean of rho: `gene`, `rho_mean`, `rho_median`, `rho_lower`, `rho_upper`,
 #'   `prob_positive`, `total_counts`, `max_rhat`, `min_ess_bulk`,
 #'   `divergences`, `time_min`, `error` (`NA` unless the fit failed), `class`
-#'   (PCG, NCG or not DCG) and `converged` (maximum R-hat below 1.01 and no
-#'   divergent transitions). The credible level is stored in
-#'   `attr(, "cred_level")`.
+#'   ("positive DCG", "negative DCG" or "uninformative") and `converged`
+#'   (maximum R-hat below 1.01 and no divergent transitions). The credible
+#'   level is stored in `attr(, "cred_level")`.
 #' @export
 #' @examplesIf requireNamespace("cmdstanr", quietly = TRUE) && !is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE)) && requireNamespace("sf", quietly = TRUE)
 #' toy <- denmark_toy_data()
@@ -107,8 +107,8 @@ denmark_scan <- function(data, genes = NULL, save_dir = NULL,
     r[setdiff(cols, names(r))] <- NA; r[cols]
   }))
   res$class <- ifelse(is.na(res$rho_lower), NA_character_,
-               ifelse(res$rho_lower > 0, "PCG",
-               ifelse(res$rho_upper < 0, "NCG", "not DCG")))
+               ifelse(res$rho_lower > 0, "positive DCG",
+               ifelse(res$rho_upper < 0, "negative DCG", "uninformative")))
   res$converged <- !is.na(res$max_rhat) & res$max_rhat < 1.01 &
                    !is.na(res$divergences) & res$divergences == 0
   res <- res[order(-res$rho_mean), , drop = FALSE]

@@ -50,15 +50,15 @@ Data frame with one row per gene, sorted by decreasing posterior
 mean of rho: \code{gene}, \code{rho_mean}, \code{rho_median}, \code{rho_lower}, \code{rho_upper},
 \code{prob_positive}, \code{total_counts}, \code{max_rhat}, \code{min_ess_bulk},
 \code{divergences}, \code{time_min}, \code{error} (\code{NA} unless the fit failed), \code{class}
-(PCG, NCG or not DCG) and \code{converged} (maximum R-hat below 1.01 and no
-divergent transitions). The credible level is stored in
-\code{attr(, "cred_level")}.
+("positive DCG", "negative DCG" or "uninformative") and \code{converged}
+(maximum R-hat below 1.01 and no divergent transitions). The credible
+level is stored in \code{attr(, "cred_level")}.
 }
 \description{
-A gene is a positively density-correlated gene (PCG) when the
+A gene is a positively density-correlated gene ("positive DCG") when the
 \code{cred_level} credible interval of rho lies above 0, a negatively
-density-correlated gene (NCG) when it lies below 0, and "not DCG"
-otherwise.
+density-correlated gene ("negative DCG") when it lies below 0, and
+"uninformative" when the interval includes 0.
 }
 \examples{
 \dontshow{if (requireNamespace("cmdstanr", quietly = TRUE) && !is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE)) && requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}

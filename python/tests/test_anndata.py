@@ -47,11 +47,11 @@ def test_from_anndata_checks_its_input(toy_adata):
 def test_annotate_writes_the_scan_into_var(toy_adata):
     scan = pd.DataFrame({"gene": ["geneC", "geneA"], "rho_mean": [-0.6, 0.6],
                          "rho_lower": [-0.8, 0.3], "rho_upper": [-0.3, 0.8],
-                         "class": ["NCG", "PCG"]})
+                         "class": ["negative DCG", "positive DCG"]})
     out = dm.annotate(toy_adata, scan)
     assert out is toy_adata
     v = toy_adata.var
     assert v.loc["geneA", "denmark_rho"] == 0.6 and v.loc["geneC", "denmark_rho"] == -0.6
     assert np.isnan(v.loc["geneB", "denmark_rho"])
-    assert v.loc["geneC", "denmark_class"] == "NCG"
+    assert v.loc["geneC", "denmark_class"] == "negative DCG"
     assert {"denmark_rho_lower", "denmark_rho_upper"} <= set(v.columns)

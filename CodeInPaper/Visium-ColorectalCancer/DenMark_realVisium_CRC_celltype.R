@@ -2,7 +2,7 @@
 DATA_DIR   <- "data"     # holds the 10x Visium CRC download in Revision-R1/spot-Visium/ (see README.md)
 OUTPUT_DIR <- "output"   # Revision-R1/spot-Visium/ below it holds nuclei.csv and spot_celltype.csv from segment_nuclei_settled.ipynb and receives the results
 REPO_ROOT  <- "."        # root of the DenMark checkout
-STAN_DIR   <- file.path(REPO_ROOT, "CodeInPaper", "Visium-ColorectalCancer")   # holds DenMark-M2-vararea-libsize.stan, not in this repository (see "Missing files" in README.md)
+STAN_DIR   <- file.path(REPO_ROOT, "CodeInPaper", "Visium-ColorectalCancer")   # holds DenMark-M2-vararea-libsize.stan
 dir.create(file.path(OUTPUT_DIR, "Revision-R1/spot-Visium"), recursive = TRUE, showWarnings = FALSE)
 ## -----------------------------------------------------------------------------
 

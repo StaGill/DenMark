@@ -123,7 +123,7 @@ test_that("denmark_scan fits, classifies and resumes a two-gene scan", {
   expect_equal(nrow(res), 2)
   expect_setequal(res$gene, c("geneA", "geneC"))
   expect_true(all(is.na(res$error)))
-  expect_true(all(res$class %in% c("PCG", "NCG", "not DCG")))
+  expect_true(all(res$class %in% c("positive DCG", "negative DCG", "uninformative")))
   expect_true(all(res$rho_lower <= res$rho_mean & res$rho_mean <= res$rho_upper))
   expect_gt(res$rho_mean[res$gene == "geneA"], res$rho_mean[res$gene == "geneC"])
   expect_equal(attr(res, "cred_level"), 0.95)

@@ -389,7 +389,7 @@ def hsgp_indices(basis) -> np.ndarray:
     return np.column_stack([s1.ravel(), s2.ravel()]).astype(int)
 
 
-def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
+def prepare_data(dataset: pd.DataFrame, gene=None, grid_size=30, basis=25,
                  boundfactor=1.5, bbox=None, L1=None, L2=None, boundary=None,
                  min_area_frac=0, offset="cells", umi=None, units=False,
                  cells="Y", area="area") -> dict:
@@ -1075,7 +1075,7 @@ def _removed_args(kwargs) -> None:
                         "only the DenMark model and no longer computes WAIC.")
 
 
-def DenMark(dataset: pd.DataFrame, gene=None, grid_size=10, basis=25,
+def DenMark(dataset: pd.DataFrame, gene=None, grid_size=30, basis=25,
             boundfactor=1.5, bbox=None, chains=4, parallel_chains=None,
             iter_warmup=1000, iter_sampling=1000, adapt_delta=0.95,
             max_treedepth=10, seed=2024, refresh=400, inits=None, rho0=0.3,
@@ -1190,8 +1190,8 @@ def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
                save_dir=None, cred_level=0.95, quiet=True,
                verbose=True, n_jobs=1, **kwargs) -> pd.DataFrame:
     """Fit DenMark gene by gene and call density-correlated genes:
-    PCG if the credible interval of rho is above 0, NCG if below 0, else
-    "not DCG". With save_dir, one CSV row per gene is cached (resumable).
+    "positive DCG" if the credible interval of rho is above 0, "negative DCG"
+    if below 0, else "uninformative". With save_dir, one CSV row per gene is cached (resumable).
     n_jobs genes are fitted at the same time; every gene keeps its seed, so
     the results equal those of the sequential scan, and each fit also runs
     its chains in parallel, so a scan uses up to n_jobs * chains cores.
@@ -1253,8 +1253,8 @@ def scan_genes(data: pd.DataFrame, genes: Optional[Iterable[str]] = None,
     else:
         rows = [one_gene(g) for g in genes]
     res = pd.DataFrame(rows)
-    res["class"] = np.where(res["rho_lower"] > 0, "PCG",
-                            np.where(res["rho_upper"] < 0, "NCG", "not DCG"))
+    res["class"] = np.where(res["rho_lower"] > 0, "positive DCG",
+                            np.where(res["rho_upper"] < 0, "negative DCG", "uninformative"))
     res.loc[res["rho_lower"].isna(), "class"] = None
     res["converged"] = (res["max_rhat"] < 1.01) & (res["divergences"] == 0)
     return res.sort_values("rho_mean", ascending=False).reset_index(drop=True)
@@ -1499,7 +1499,7 @@ def plot_scan(scan: pd.DataFrame, top: Optional[int] = None, figsize=None):
     if top is not None and len(s) > top:
         s = s.reindex(s.rho_mean.abs().sort_values(ascending=False).index[:top])
     s = s.sort_values("rho_mean")
-    col = s["class"].map({"PCG": "#B2182B", "NCG": "#2166AC"}).fillna("0.5")
+    col = s["class"].map({"positive DCG": "#B2182B", "negative DCG": "#2166AC"}).fillna("0.5")
     fig, ax = plt.subplots(figsize=figsize or (6, 0.35 * len(s) + 1.2), constrained_layout=True)
     y = np.arange(len(s))
     ax.axvline(0, ls="--", color="0.5", lw=1)

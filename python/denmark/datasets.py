@@ -16,8 +16,8 @@ def load_toy():
     package; ``data-raw/make_toy_data.R`` in the repository rebuilds the file.
     The true density-expression correlations of the Tumor cells are rho = 0.6
     for geneA, 0 for geneB and -0.6 for geneC, so a DenMark scan should call
-    geneA a positively density-correlated gene (PCG), geneC a negatively
-    density-correlated gene (NCG) and geneB neither. The other cells only help
+    geneA a positively density-correlated gene (positive DCG), geneC a negatively
+    density-correlated gene (negative DCG) and geneB neither. The other cells only help
     delineate the tissue: compute the boundary with ``alpha_shape()`` from all
     cells, then analyze the Tumor cells. The R package ships the same file,
     read by ``denmark_toy_data()``. Numbers are parsed to the nearest double,

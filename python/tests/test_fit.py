@@ -74,7 +74,7 @@ def test_scan_two_genes(tumor, tissue):
     assert scan["error"].isna().all()
     assert np.isfinite(scan[["rho_mean", "rho_lower", "rho_upper"]].to_numpy(float)).all()
     assert (scan["rho_lower"] <= scan["rho_upper"]).all()
-    assert set(scan["class"]) <= {"PCG", "NCG", "not DCG"}
+    assert set(scan["class"]) <= {"positive DCG", "negative DCG", "uninformative"}
 
 
 def test_parallel_scan_equals_sequential_fits(tumor, tissue):

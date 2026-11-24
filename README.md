@@ -64,7 +64,7 @@ The steps of the STAR Methods map to the following functions. Python mirrors R f
 
 `denmark_check_hsgp()` (Python: `.check_hsgp()`) checks the number of basis functions and the boundary factor against the rule of thumb of Riutort-Mayol et al. (2023). The figures come from `plot_denmark_boundary()`, `plot_denmark_grid()`, `plot_denmark_fields()`, `plot_denmark_decay()` and `plot_denmark_scan()` in R (ggplot2), and from `plot_boundary()`, `plot_grid()`, `plot_fields()`, `plot_decay()` and `plot_scan()` in Python (matplotlib).
 
-The revised manuscript also uses the total transcript count as the expression offset on Visium HD and Visium, and pools Visium spots into seven-spot super-grids. These arrive in the packages in v1.0.0. Version 0.9.0 uses the cell count as the offset; the total-UMI Stan model used by the revision scripts is already bundled in `inst/stan/`.
+On Visium HD and Visium, the manuscript uses the total transcript count as the expression offset and pools Visium spots into seven-spot super-grids: `offset = "umi"` in `DenMark()`, `denmark_prepare()` and `denmark_scan()`, and `denmark_pool_visium()` with `units = TRUE` (Python: `offset="umi"`, `pool_visium()` and `units=True`). [Gene programs on Visium HD and Xenium](https://stagill.github.io/DenMark/articles/programs.html) runs a program-level analysis from start to finish.
 
 ---
 
@@ -184,7 +184,7 @@ denmark_decay(fit)$ranges
 plot_denmark_decay(fit)
 denmark_check_hsgp(fit)
 
-# Screen genes: PCG if the 95% credible interval of rho lies above 0, NCG if below 0
+# Screen genes: positive DCG if the 95% credible interval of rho lies above 0, negative DCG if below 0
 scan <- denmark_scan(tumor, boundary = tissue, grid_size = 10, basis = 10,
                      chains = 2, iter_warmup = 500, iter_sampling = 500, seed = 2024)
 scan[, c("gene", "rho_mean", "rho_lower", "rho_upper", "class")]
@@ -298,7 +298,7 @@ print(fit.decay()["ranges"])
 fig = dm.plot_decay(fit)
 print(fit.check_hsgp())
 
-# Screen genes: PCG if the 95% credible interval of rho lies above 0, NCG if below 0
+# Screen genes: positive DCG if the 95% credible interval of rho lies above 0, negative DCG if below 0
 scan = dm.scan_genes(tumor, boundary=tissue, grid_size=10, basis=10, chains=2,
                      iter_warmup=500, iter_sampling=500, seed=2024)
 print(scan[["gene", "rho_mean", "rho_lower", "rho_upper", "class"]])
@@ -314,7 +314,7 @@ fit = dm.load_result(path)
 
 ## Reproducing results from the manuscript
 
-Release v1.0.0 will be the version that accompanies the manuscript. Later releases may change the results, so install that version to reproduce them once it is tagged. The scripts under [`CodeInPaper/`](https://github.com/StaGill/DenMark/tree/main/CodeInPaper) reproduce the main analyses. Each script begins with a CONFIGURE ME block that sets the data, output and repository paths, and `CodeInPaper/README.md` maps the scripts to the Results subsections and figures, with dataset access instructions and any inputs not yet in the repository:
+Release v1.0.0 is the version that accompanies the manuscript. Later releases may change the results, so install that version to reproduce them. The scripts under [`CodeInPaper/`](https://github.com/StaGill/DenMark/tree/main/CodeInPaper) reproduce the main analyses. Each script begins with a CONFIGURE ME block that sets the data, output and repository paths, and `CodeInPaper/README.md` maps the scripts to the Results subsections and figures, with dataset access instructions and any inputs not yet in the repository:
 
 - `Simulation/`: false and true positive rates of the DCG calls on simulated genes of known status.
 - `MERFISH-MouseBrain/`: density-correlated genes of astrocytes in the Vizgen mouse brain data, section S3R1 in detail and nine sections for reproducibility.

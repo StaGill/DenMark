@@ -34,9 +34,10 @@ test_that("denmark_annotate writes the scan into the feature metadata", {
   skip_if_no_toy_data()
   obj <- toy_seurat(50)$object
   scan <- data.frame(gene = c("geneC", "geneA"), rho_mean = c(-0.6, 0.6),
-                     rho_lower = c(-0.8, 0.3), rho_upper = c(-0.3, 0.8), class = c("NCG", "PCG"))
+                     rho_lower = c(-0.8, 0.3), rho_upper = c(-0.3, 0.8),
+                     class = c("negative DCG", "positive DCG"))
   md <- denmark_annotate(obj, scan)[["RNA"]][[]]
   expect_equal(md[c("geneA", "geneB", "geneC"), "denmark_rho"], c(0.6, NA, -0.6))
-  expect_equal(md[c("geneA", "geneB", "geneC"), "denmark_class"], c("PCG", NA, "NCG"))
+  expect_equal(md[c("geneA", "geneB", "geneC"), "denmark_class"], c("positive DCG", NA, "negative DCG"))
   expect_true(all(c("denmark_rho_lower", "denmark_rho_upper") %in% names(md)))
 })

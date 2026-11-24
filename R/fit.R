@@ -175,7 +175,7 @@ denmark_init <- function(stan_data, rho0 = 0.3) {
 #'                seed = 2024, quiet = TRUE)
 #' fit
 DenMark <- function(dataset, gene = NULL,
-                    grid_size = 10, basis = 25, boundfactor = 1.5, bbox = NULL,
+                    grid_size = 30, basis = 25, boundfactor = 1.5, bbox = NULL,
                     chains = 4, parallel_chains = chains,
                     iter_warmup = 1000, iter_sampling = 1000,
                     adapt_delta = 0.95, max_treedepth = 10,

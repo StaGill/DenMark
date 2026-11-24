@@ -257,15 +257,16 @@ plot_denmark_scan <- function(scan, top = NULL) {
   if (!is.null(top) && nrow(s) > top)
     s <- s[order(-abs(s$rho_mean)), ][seq_len(top), ]
   s$gene <- factor(s$gene, levels = s$gene[order(s$rho_mean)])
-  s$class <- factor(s$class, c("PCG", "NCG", "not DCG"))
+  s$class <- factor(s$class, c("positive DCG", "negative DCG", "uninformative"))
   ggplot2::ggplot(s, ggplot2::aes(x = .data$rho_mean, y = .data$gene,
                                   colour = .data$class)) +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, colour = "grey50") +
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = .data$rho_lower, xmax = .data$rho_upper),
                             height = 0.25) +
     ggplot2::geom_point(size = 2) +
-    ggplot2::scale_colour_manual(values = c(PCG = "#B2182B", NCG = "#2166AC",
-                                            `not DCG` = "grey50"), drop = FALSE) +
+    ggplot2::scale_colour_manual(values = c(`positive DCG` = "#B2182B",
+                                            `negative DCG` = "#2166AC",
+                                            uninformative = "grey50"), drop = FALSE) +
     ggplot2::scale_x_continuous(limits = c(-1, 1)) +
     ggplot2::labs(x = expression("Density-expression correlation " * rho *
                                  " (posterior mean, credible interval)"),

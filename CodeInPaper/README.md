@@ -11,7 +11,7 @@ it was run for the paper; only file paths were changed (see [Paths](#paths)).
 | [`Simulation/`](Simulation/) | Calling density-correlated genes (DCGs) among simulated genes of known status | Validation of DenMark on simulated data | S3 | Simulated; no external data |
 | [`MERFISH-MouseBrain/`](MERFISH-MouseBrain/) | Astrocytes in nine MERFISH mouse-brain sections, with section S3R1 in detail | Density-correlated genes in mouse-brain astrocytes complement cell-type markers and are reproducible across sections | 3A-K; S7, S8, S9; S13A, B, D | Vizgen MERSCOPE mouse brain data, public bucket `public-datasets-vizgen-merfish`: <https://console.cloud.google.com/storage/browser/public-datasets-vizgen-merfish> |
 | [`Xenium-BreastCancer/`](Xenium-BreastCancer/) | Three regions of interest and three whole-section cell populations of a Xenium breast tumor | Density-correlated genes reveal the spatial antagonism of tumor and immune compartments in breast cancer | 4C-H; S14, S15, S16C-D, S17; Data S2, S3 | 10x Genomics Xenium human breast cancer: <https://www.10xgenomics.com/products/xenium-in-situ/human-breast-dataset-explorer> |
-| [`OvarianCancer-VisiumHD-Xenium5K/`](OvarianCancer-VisiumHD-Xenium5K/) | Density-program correlations on adjacent ovarian tumor sections profiled by Visium HD, Xenium v1 and Xenium Prime 5K | DenMark recovers program-level density correlations that transfer across platforms | 5G (with 5B, 5F); S19A, S19C; Data S4 (shared panels) | 10x Genomics Visium HD: <https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-ovarian-cancer-discovery-fresh-frozen>; Xenium v1 and Xenium Prime 5K: <https://www.10xgenomics.com/datasets/xenium-comparison-fresh-frozen-human-ovarian-cancer> |
+| [`OvarianCancer-VisiumHD-Xenium5K/`](OvarianCancer-VisiumHD-Xenium5K/) | Density-program correlations on adjacent ovarian tumor sections profiled by Visium HD, Xenium v1 and Xenium Prime 5K | DenMark recovers program-level density correlations that transfer across platforms | 5G (with 5B, 5F); S20A, S20C; Data S4 (shared panels) | 10x Genomics Visium HD: <https://www.10xgenomics.com/datasets/visium-hd-cytassist-gene-expression-ovarian-cancer-discovery-fresh-frozen>; Xenium v1 and Xenium Prime 5K: <https://www.10xgenomics.com/datasets/xenium-comparison-fresh-frozen-human-ovarian-cancer> |
 | [`Visium-ColorectalCancer/`](Visium-ColorectalCancer/) | Visium-like spots built from the Xenium breast section, and a Visium colorectal cancer section with nuclei counted from H&E | DenMark extends to spot-level Visium data and recovers single-cell density correlations after aggregation | 6C, 6E, 6G (with the super-grids of 6F) | 10x Genomics Visium CytAssist human colorectal cancer, 11 mm capture area, FFPE: <https://www.10xgenomics.com/datasets/human-colorectal-cancer-11-mm-capture-area-ffpe-2-standard>; Xenium breast data as above |
 
 Figure numbers refer to the main text and the Supplemental Information of the
@@ -95,10 +95,6 @@ expected location of each.
 
 **Stan models**
 
-- `DenMark-M2-vararea-libsize.stan`, read by
-  `Visium-ColorectalCancer/DenMark_realVisium_CRC_celltype.R` (variable-area
-  model with the per-unit library size as the expression offset, data
-  `log_lib`).
 - `M2-latent-field-mod.stan`, read by
   `Xenium-BreastCancer/DenMark-framework-real-analysis-BC.R`, and
   `M2-latent-field-mod-genes.stan`, read by
@@ -138,7 +134,7 @@ expected location of each.
   sections), and the per-section fits behind Figure 3J and Figures S8 and S9.
 - Figures 4A, 4B, S11, S12 and S16A-B (breast-tumor maps, region grids, density
   and detection-depth diagnostics).
-- Figures 5A, 5C-E and S18, the full-panel fits of Figure 5E and Data S4, and the
-  cell-count offset fits of Figures S19B and S19D.
-- Figures 6A, 6B, 6D and S20 and the maps of Figure 6F (simulated Visium spots,
+- Figures 5A, 5C-E and S19, the full-panel fits of Figure 5E and Data S4, and the
+  cell-count offset fits of Figures S20B and S20D.
+- Figures 6A, 6B, 6D and S21 and the maps of Figure 6F (simulated Visium spots,
   and the spot-level fits of 252 genes compared with single-cell estimates).

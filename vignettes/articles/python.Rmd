@@ -202,9 +202,10 @@ fig = dm.plot_decay(fit, decay=decay)
 
 ## Scanning genes for density-correlated genes
 
-`dm.scan_genes()` fits DenMark to each gene and calls it a positively (PCG)
-or negatively (NCG) density-correlated gene when the 95% credible interval
-of $\rho$ lies above or below 0, and not a DCG otherwise.
+`dm.scan_genes()` fits DenMark to each gene and calls it a positive or
+negative density-correlated gene ("positive DCG", "negative DCG") when the 95%
+credible interval of $\rho$ lies above or below 0, and "uninformative" when the
+interval includes 0.
 
 ```python
 scan = dm.scan_genes(tumor, genes=["geneA", "geneB", "geneC"], boundary=tissue,
@@ -224,8 +225,9 @@ refitting; the R package ships a template of this workflow
 
 ## Checking the estimates against the truth
 
-With true values of 0.6, 0 and -0.6, the expected calls are PCG for geneA,
-not DCG for geneB and NCG for geneC. The table compares each posterior mean
+With true values of 0.6, 0 and -0.6, the expected calls are positive DCG for
+geneA, uninformative for geneB and negative DCG for geneC. The table compares each
+posterior mean
 and 95% credible interval with the true $\rho$; `covered` shows whether the
 interval contains it. [Reading density-correlated genes](reading-dcgs.html)
 explains what a call can and cannot tell you, and how to tell a change within the

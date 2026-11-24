@@ -21,7 +21,7 @@ writes to `OUTPUT_DIR`.
 
 The pooled fits of `DenMark_pseudoVisium_celltype_Astar21.R` are not reported in
 the manuscript. There, each population is fitted at the spot level without
-pooling, for 252 genes (Figure 6D and Figure S20); those cluster scripts are
+pooling, for 252 genes (Figure 6D and Figure S21); those cluster scripts are
 not yet in this folder.
 
 ## Inputs
@@ -67,13 +67,9 @@ Visium-like spots: the preprocessed tables of the Xenium breast section (see
 
 ## Missing files
 
-- `DenMark-M2-vararea-libsize.stan`, read from `STAN_DIR` by
-  `DenMark_realVisium_CRC_celltype.R`: the variable-area model with the
-  centered log library size of each super-grid as the expression offset (data
-  `log_lib`).
 - `pixel-size-raw.txt`, `radius-raw.txt` and the optional
   `xenium_singlecell_coupling.csv` for the Visium-like spots, and the
   preprocessed Xenium tables (see `../Xenium-BreastCancer/README.md`).
 - The scripts behind Figures 6A and 6B (simulated Visium spots), Figure 6D and
-  Figure S20 (spot-level fits of 252 genes against single-cell estimates) and the
+  Figure S21 (spot-level fits of 252 genes against single-cell estimates) and the
   maps of Figure 6F.
